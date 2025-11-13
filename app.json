@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "FSM Mobile App",
+    "slug": "fsm-mobile-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fsm.mobileapp",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app needs location access to record visit locations.",
+        "NSLocationAlwaysUsageDescription": "This app needs location access to record visit locations."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.fsm.mobileapp",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "RECEIVE_BOOT_COMPLETED",
+        "SCHEDULE_EXACT_ALARM"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-location",
+      "expo-notifications",
+      [
+        "expo-sqlite",
+        {
+          "enableFTS": true
+        }
+      ]
+    ]
+  }
+}

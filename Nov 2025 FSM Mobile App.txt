@@ -1,0 +1,91 @@
+11th Nov 2025
+
+
+For Alibhai
+cc: Abbasbhai	please add any missing points
+
+
+Mobile App Requirement
+Field Sales Team activity reporting	a very simplified version
+This mobile app is meant for any field sales team to easily record their customer visits and daily activities.
+
+The goal is to make it as simple and quick as possible mostly by choosing and ticking options instead of typing.
+
+At the backend, we only need the data to be saved in a way that we can download reports in Excel for analysis.
+
+1. What we want
+A simple mobile app for Android and iPhone where each salesman can record their daily visits by just selecting options and no long writing. They should be able to complete one visit report in less than a minute.
+
+2. How it should work
+1. The salesman logs in with their name or phone number.
+2. They press a big button “New Visit”
+3. On the visit form, they select or tick options such as:
+* Customer name type or auto fill for second visit onwards
+* Contact person type or auto-fill if available
+* Type of meeting tick:
+? Introduction
+? Enquiry
+? Order
+? Payment
+? Follow-up
+
+* Products discussed tick from list in the master table
+? A
+? B
+? C
+? D
+? E
+* Next action tick with date
+? Meeting
+? Send Sample
+? Visit Again with Management
+? Invite to Factory
+* Potential tick
+? High
+? Medium
+? Low
+* Currently with competitor
+? Name of the competitor type
+? Can be switched tick
+? Cannot be switched tick
+4. The app automatically records:
+* Date and time (when started and submitted)
+* GPS location of the meeting
+5. The salesman presses “Submit” and the visit is saved
+6. The app should also work offline and upload later when internet is available.
+7. The dates saved will give a prompt on the day for the action as a reminder.
+
+3. What we need in the backend
+* The admin should be able to see all visit records.
+* We should be able to download all visit data in Excel format.
+* Each visit entry in Excel should show:
+
+o Date, Salesman Name, Customer, Meeting Type, Products, Next Action, Potential
+o Competitor, Remarks, Time In/Out, GPS.
+* The backend can be very simple even a web dashboard is fine.
+
+4. Purpose of reports
+From the Excel data, we should be able to analyse:
+* How many visits per salesman per day/week
+* How many orders, enquiries, and follow-ups
+* Which customers are most visited
+* What kind of products are being discussed most
+* Salesman hit ratio – calls made / proposals given / orders generated
+* Pipeline generated
+
+5. What we don’t need
+* No complicated CRM features
+* No live tracking or chat
+* No automatic emails or fancy dashboards
+* Just easy data entry + Excel report download
+
+6. Expected simplicity
+The app should be lightweight, work smoothly on low-end phones, and use simple screens with dropdowns, checkboxes, and buttons.
+
+7. Example of data in Excel
+Each visit will appear as one row in Excel like this:
+Date | Salesman | Customer | Meeting Type | Product | Next Action | Potential | Competitor | Remarks | GPS | Time In | Time Out
+
+That’s all we need to begin with. Later, we can think about small improvements once the basic version is working well.
+
+

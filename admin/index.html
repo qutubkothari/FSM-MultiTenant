@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FSM Admin Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #007AFF;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+
+        .btn-success {
+            background: #34C759;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #28a745;
+        }
+
+        input[type="date"], select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #007AFF;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .table-container {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f8f9fa;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            color: #666;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .badge-high {
+            background: #34C759;
+        }
+
+        .badge-medium {
+            background: #FF9500;
+        }
+
+        .badge-low {
+            background: #FF3B30;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>FSM Admin Dashboard</h1>
+            <p>Field Sales Management - Visit Analytics</p>
+        </header>
+
+        <div class="controls">
+            <input type="date" id="startDate" />
+            <input type="date" id="endDate" />
+            <select id="salesmanFilter">
+                <option value="">All Salesmen</option>
+            </select>
+            <button class="btn btn-primary" onclick="loadVisits()">Filter</button>
+            <button class="btn btn-success" onclick="exportToExcel()">Export to Excel</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalVisits">0</div>
+                <div class="stat-label">Total Visits</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalOrders">0</div>
+                <div class="stat-label">Orders</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalEnquiries">0</div>
+                <div class="stat-label">Enquiries</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="avgHitRatio">0%</div>
+                <div class="stat-label">Avg Hit Ratio</div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table id="visitsTable">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Salesman</th>
+                        <th>Customer</th>
+                        <th>Meeting Type</th>
+                        <th>Products</th>
+                        <th>Next Action</th>
+                        <th>Potential</th>
+                        <th>Competitor</th>
+                        <th>GPS</th>
+                        <th>Time In</th>
+                        <th>Time Out</th>
+                    </tr>
+                </thead>
+                <tbody id="visitsTableBody">
+                    <tr>
+                        <td colspan="11" class="loading">Loading visits...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Supabase
+        const SUPABASE_URL = 'https://ktvrffbccgxtaststlhw.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt0dnJmZmJjY2d4dGFzdHN0bGh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzE0OTEyMzgsImV4cCI6MjA0NzA2NzIzOH0.sNhpQ5W6i_KuIPcT6bjjnw_BcJwPljV';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let allVisits = [];
+
+        // Initialize dates
+        document.getElementById('endDate').value = new Date().toISOString().split('T')[0];
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 30);
+        document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+
+        // Load salesmen for filter
+        async function loadSalesmen() {
+            const { data, error } = await supabase
+                .from('salesmen')
+                .select('id, name')
+                .eq('is_active', true)
+                .order('name');
+
+            if (data) {
+                const select = document.getElementById('salesmanFilter');
+                data.forEach(salesman => {
+                    const option = document.createElement('option');
+                    option.value = salesman.id;
+                    option.textContent = salesman.name;
+                    select.appendChild(option);
+                });
+            }
+        }
+
+        // Load visits
+        async function loadVisits() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const salesmanId = document.getElementById('salesmanFilter').value;
+
+            let query = supabase
+                .from('visits')
+                .select(`
+                    *,
+                    salesman:salesman_id (name),
+                    customer:customer_id (name, contact_person)
+                `)
+                .order('created_at', { ascending: false });
+
+            if (startDate) {
+                query = query.gte('created_at', startDate);
+            }
+            if (endDate) {
+                query = query.lte('created_at', endDate + 'T23:59:59');
+            }
+            if (salesmanId) {
+                query = query.eq('salesman_id', salesmanId);
+            }
+
+            const { data, error } = await query;
+
+            if (error) {
+                console.error('Error loading visits:', error);
+                return;
+            }
+
+            allVisits = data;
+            renderVisits(data);
+            updateStats(data);
+        }
+
+        // Render visits table
+        function renderVisits(visits) {
+            const tbody = document.getElementById('visitsTableBody');
+            
+            if (visits.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="11" class="loading">No visits found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = visits.map(visit => `
+                <tr>
+                    <td>${new Date(visit.created_at).toLocaleDateString()}</td>
+                    <td>${visit.salesman?.name || 'N/A'}</td>
+                    <td>${visit.customer_name}</td>
+                    <td>${visit.meeting_type.join(', ')}</td>
+                    <td>${visit.products_discussed.length} products</td>
+                    <td>${visit.next_action || 'N/A'}</td>
+                    <td><span class="badge badge-${visit.potential.toLowerCase()}">${visit.potential}</span></td>
+                    <td>${visit.competitor_name || 'N/A'}</td>
+                    <td><a href="https://www.google.com/maps?q=${visit.gps_latitude},${visit.gps_longitude}" target="_blank">View</a></td>
+                    <td>${new Date(visit.time_in).toLocaleTimeString()}</td>
+                    <td>${visit.time_out ? new Date(visit.time_out).toLocaleTimeString() : 'N/A'}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Update stats
+        function updateStats(visits) {
+            document.getElementById('totalVisits').textContent = visits.length;
+            
+            const orders = visits.filter(v => v.meeting_type.includes('Order')).length;
+            document.getElementById('totalOrders').textContent = orders;
+            
+            const enquiries = visits.filter(v => v.meeting_type.includes('Enquiry')).length;
+            document.getElementById('totalEnquiries').textContent = enquiries;
+            
+            const hitRatio = enquiries > 0 ? ((orders / enquiries) * 100).toFixed(1) : 0;
+            document.getElementById('avgHitRatio').textContent = hitRatio + '%';
+        }
+
+        // Export to Excel
+        function exportToExcel() {
+            if (allVisits.length === 0) {
+                alert('No data to export');
+                return;
+            }
+
+            const data = allVisits.map(visit => ({
+                'Date': new Date(visit.created_at).toLocaleDateString(),
+                'Salesman': visit.salesman?.name || 'N/A',
+                'Customer': visit.customer_name,
+                'Contact Person': visit.contact_person || 'N/A',
+                'Meeting Type': visit.meeting_type.join(', '),
+                'Products': visit.products_discussed.length,
+                'Next Action': visit.next_action || 'N/A',
+                'Next Action Date': visit.next_action_date ? new Date(visit.next_action_date).toLocaleDateString() : 'N/A',
+                'Potential': visit.potential,
+                'Competitor': visit.competitor_name || 'N/A',
+                'Can Be Switched': visit.can_be_switched !== null ? (visit.can_be_switched ? 'Yes' : 'No') : 'N/A',
+                'Remarks': visit.remarks || '',
+                'GPS Latitude': visit.gps_latitude,
+                'GPS Longitude': visit.gps_longitude,
+                'Time In': new Date(visit.time_in).toLocaleString(),
+                'Time Out': visit.time_out ? new Date(visit.time_out).toLocaleString() : 'N/A'
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Visits');
+            
+            const filename = `FSM_Visits_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(workbook, filename);
+        }
+
+        // Initialize
+        loadSalesmen();
+        loadVisits();
+    </script>
+</body>
+</html>
