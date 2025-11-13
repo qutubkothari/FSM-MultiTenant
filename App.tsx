@@ -22,7 +22,7 @@ export default function App() {
     // Initialize environment variables (you can load from expo-constants here)
     initializeEnv({
       SUPABASE_URL: 'https://ktvrffbccgxtaststlhw.supabase.co',
-      SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt0dnJmZmJjY2d4dGFzdHN0bGh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzE0OTEyMzgsImV4cCI6MjA0NzA2NzIzOH0.sNhpQ5W6i_KuIPcT6bjjnw_BcJwPljV',
+      SUPABASE_ANON_KEY: 'sb_publishable_sNhpQ5W6i_KuIPcT6bjjnw_BcJwPljV',
       OPENAI_API_KEY: 'your-openai-key',
     });
 
