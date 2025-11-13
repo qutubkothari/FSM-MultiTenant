@@ -13,13 +13,21 @@ import {
   MenuItem,
   CircularProgress,
   Chip,
+  Paper,
+  List,
+  ListItem,
+  ListItemText,
 } from '@mui/material';
 import {
   LocationOn as LocationIcon,
   Send as SendIcon,
+  Lightbulb as LightbulbIcon,
+  TrendingUp as TrendingUpIcon,
+  ShoppingCart as ShoppingCartIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '../../store/authStore';
 import { visitService } from '../../services/supabase';
+import { aiService } from '../../services/ai.service';
 
 interface Props {
   onSuccess: () => void;
@@ -31,6 +39,8 @@ export default function NewVisitForm({ onSuccess }: Props) {
   const [gettingLocation, setGettingLocation] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [aiInsights, setAiInsights] = useState<any>(null);
+  const [loadingInsights, setLoadingInsights] = useState(false);
   const [formData, setFormData] = useState({
     customer_name: '',
     customer_phone: '',
@@ -69,6 +79,76 @@ export default function NewVisitForm({ onSuccess }: Props) {
   useEffect(() => {
     getLocation();
   }, []);
+
+  // AI Intelligence: Load insights when customer name is entered
+  useEffect(() => {
+    const loadAIInsights = async () => {
+      if (formData.customer_name.length < 3) {
+        setAiInsights(null);
+        return;
+      }
+
+      setLoadingInsights(true);
+      try {
+        // Get all visits for this salesman
+        const allVisits = await visitService.getVisits(user?.id);
+        
+        // Filter visits for this customer
+        const customerVisits = allVisits.filter((v: any) => 
+          v.customer_name.toLowerCase().includes(formData.customer_name.toLowerCase())
+        );
+
+        if (customerVisits.length > 0) {
+          // Get AI recommendations for this customer
+          const productRecommendations = await aiService.getProductRecommendations(
+            formData.customer_name,
+            customerVisits
+          );
+
+          // Calculate visit stats
+          const lastVisit = customerVisits[0];
+          const daysSinceLastVisit = Math.floor(
+            (Date.now() - new Date(lastVisit.created_at).getTime()) / (1000 * 60 * 60 * 24)
+          );
+
+          setAiInsights({
+            isExistingCustomer: true,
+            totalVisits: customerVisits.length,
+            lastVisitDate: new Date(lastVisit.created_at).toLocaleDateString(),
+            daysSinceLastVisit,
+            productRecommendations,
+            visitHistory: customerVisits.slice(0, 3),
+            suggestion: daysSinceLastVisit > 7 
+              ? 'This customer hasn\'t been visited in a while. Consider a follow-up!' 
+              : 'Recent customer - good timing for a follow-up visit.',
+          });
+
+          // Auto-fill customer info if found
+          if (customerVisits.length > 0 && !formData.customer_phone) {
+            setFormData(prev => ({
+              ...prev,
+              customer_phone: lastVisit.customer_phone || '',
+              customer_address: lastVisit.customer_address || '',
+              visit_type: 'followup',
+            }));
+          }
+        } else {
+          setAiInsights({
+            isExistingCustomer: false,
+            suggestion: 'New customer! Make a great first impression.',
+            productRecommendations: ['Product A', 'Product B', 'Product C'],
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load AI insights:', error);
+      } finally {
+        setLoadingInsights(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(loadAIInsights, 500);
+    return () => clearTimeout(debounceTimer);
+  }, [formData.customer_name, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,7 +217,94 @@ export default function NewVisitForm({ onSuccess }: Props) {
               value={formData.customer_name}
               onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
               margin="normal"
+              helperText={loadingInsights ? 'Loading AI insights...' : 'Start typing to get AI-powered suggestions'}
             />
+
+            {/* AI Insights Panel */}
+            {aiInsights && (
+              <Paper 
+                elevation={3} 
+                sx={{ 
+                  p: 2, 
+                  mt: 2, 
+                  bgcolor: aiInsights.isExistingCustomer ? '#e3f2fd' : '#fff3e0',
+                  border: '2px solid',
+                  borderColor: aiInsights.isExistingCustomer ? '#2196f3' : '#ff9800',
+                }}
+              >
+                <Box display="flex" alignItems="center" gap={1} mb={1}>
+                  <LightbulbIcon color={aiInsights.isExistingCustomer ? 'primary' : 'warning'} />
+                  <Typography variant="h6" fontWeight={600}>
+                    🤖 AI Insights
+                  </Typography>
+                </Box>
+
+                <Alert 
+                  severity={aiInsights.isExistingCustomer ? 'info' : 'warning'} 
+                  sx={{ mb: 2 }}
+                >
+                  {aiInsights.suggestion}
+                </Alert>
+
+                {aiInsights.isExistingCustomer && (
+                  <Box mb={2}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      <TrendingUpIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
+                      Customer History:
+                    </Typography>
+                    <Box display="flex" gap={1} flexWrap="wrap" mb={1}>
+                      <Chip label={`${aiInsights.totalVisits} visits`} size="small" color="primary" />
+                      <Chip label={`Last visit: ${aiInsights.lastVisitDate}`} size="small" />
+                      <Chip 
+                        label={`${aiInsights.daysSinceLastVisit} days ago`} 
+                        size="small" 
+                        color={aiInsights.daysSinceLastVisit > 7 ? 'error' : 'success'}
+                      />
+                    </Box>
+                  </Box>
+                )}
+
+                {aiInsights.productRecommendations && aiInsights.productRecommendations.length > 0 && (
+                  <Box>
+                    <Typography variant="subtitle2" gutterBottom>
+                      <ShoppingCartIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
+                      Recommended Products:
+                    </Typography>
+                    <Box display="flex" gap={1} flexWrap="wrap">
+                      {aiInsights.productRecommendations.map((product: string) => (
+                        <Chip 
+                          key={product} 
+                          label={product} 
+                          size="small" 
+                          color="success"
+                          variant="outlined"
+                        />
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+
+                {aiInsights.visitHistory && aiInsights.visitHistory.length > 0 && (
+                  <Box mt={2}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Recent Visit Notes:
+                    </Typography>
+                    <List dense>
+                      {aiInsights.visitHistory.map((visit: any, idx: number) => (
+                        <ListItem key={idx} sx={{ pl: 0 }}>
+                          <ListItemText
+                            primary={new Date(visit.created_at).toLocaleDateString()}
+                            secondary={visit.notes || 'No notes'}
+                            primaryTypographyProps={{ variant: 'caption', fontWeight: 600 }}
+                            secondaryTypographyProps={{ variant: 'caption' }}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Box>
+                )}
+              </Paper>
+            )}
 
             <TextField
               fullWidth

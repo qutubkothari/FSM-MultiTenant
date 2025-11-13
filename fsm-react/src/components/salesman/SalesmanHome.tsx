@@ -14,6 +14,7 @@ import {
 } from '@mui/icons-material';
 import { useAuthStore } from '../../store/authStore';
 import { visitService } from '../../services/supabase';
+import AIInsights from './AIInsights';
 
 export default function SalesmanHome() {
   const { user } = useAuthStore();
@@ -168,6 +169,11 @@ export default function SalesmanHome() {
           </Typography>
         </CardContent>
       </Card>
+
+      {/* AI Insights Section */}
+      <Box sx={{ mt: 3 }}>
+        <AIInsights />
+      </Box>
     </Box>
   );
 }

@@ -7,10 +7,30 @@ handlers:
     upload: dist-react/index.html
     secure: always
 
-  # Serve assets
+  # Serve manifest.json (alias for manifest.webmanifest)
+  - url: /manifest.json
+    static_files: dist-react/manifest.webmanifest
+    upload: dist-react/manifest.webmanifest
+    secure: always
+    mime_type: application/manifest+json
+
+  # Serve service worker
+  - url: /sw.js
+    static_files: dist-react/registerSW.js
+    upload: dist-react/registerSW.js
+    secure: always
+    mime_type: application/javascript
+
+  # Serve assets folder
   - url: /assets/(.*)
     static_files: dist-react/assets/\1
     upload: dist-react/assets/.*
+    secure: always
+
+  # Serve other root files (manifest, sw, etc)
+  - url: /(.+\.(js|json|webmanifest))
+    static_files: dist-react/\1
+    upload: dist-react/.*
     secure: always
 
   # SPA fallback
