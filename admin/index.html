@@ -182,35 +182,105 @@
     </style>
 </head>
 <body>
+
     <div class="container">
         <header>
             <h1>FSM Admin Dashboard</h1>
             <p>Field Sales Management - Visit Analytics</p>
         </header>
 
+        <!-- Tab Navigation -->
+        <nav class="admin-tabs">
+            <button class="tab-btn active" id="tabVisits" onclick="showTab('visits')">Visits</button>
+            <button class="tab-btn" id="tabProducts" onclick="showTab('products')">Products</button>
+            <button class="tab-btn" id="tabSalesmen" onclick="showTab('salesmen')" disabled>Salesmen</button>
+            <button class="tab-btn" id="tabCustomers" onclick="showTab('customers')" disabled>Customers</button>
+        </nav>
 
-        <div class="controls">
-            <input type="date" id="startDate" />
-            <input type="date" id="endDate" />
-            <select id="salesmanFilter">
-                <option value="">All Salesmen</option>
-            </select>
-            <button class="btn btn-primary" onclick="loadVisits()">Filter</button>
-            <button class="btn btn-success" onclick="exportToExcel()">Export to Excel</button>
+        <!-- Visits Tab -->
+        <div id="visitsTab" class="tab-content" style="display:block;">
+            <div class="controls">
+                <input type="date" id="startDate" />
+                <input type="date" id="endDate" />
+                <select id="salesmanFilter">
+                    <option value="">All Salesmen</option>
+                </select>
+                <button class="btn btn-primary" onclick="loadVisits()">Filter</button>
+                <button class="btn btn-success" onclick="exportToExcel()">Export to Excel</button>
+            </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalVisits">0</div>
+                    <div class="stat-label">Total Visits</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalOrders">0</div>
+                    <div class="stat-label">Orders</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalEnquiries">0</div>
+                    <div class="stat-label">Enquiries</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="avgHitRatio">0%</div>
+                    <div class="stat-label">Avg Hit Ratio</div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table id="visitsTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Salesman</th>
+                            <th>Customer</th>
+                            <th>Meeting Type</th>
+                            <th>Products</th>
+                            <th>Next Action</th>
+                            <th>Potential</th>
+                            <th>Competitor</th>
+                            <th>GPS</th>
+                            <th>Time In</th>
+                            <th>Time Out</th>
+                        </tr>
+                    </thead>
+                    <tbody id="visitsTableBody">
+                        <tr>
+                            <td colspan="11" class="loading">Loading visits...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
-        <!-- Product Addition Form -->
-        <div class="controls" style="margin-bottom: 30px;">
-            <h3 style="margin-right: 20px;">Add Product</h3>
-            <input type="text" id="productName" placeholder="Product Name" style="width:160px;" />
-            <input type="text" id="productCode" placeholder="Product Code" style="width:120px;" />
-            <input type="text" id="productCategory" placeholder="Category" style="width:120px;" />
-            <input type="text" id="productDescription" placeholder="Description" style="width:200px;" />
-            <select id="productActive" style="width:100px;">
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
-            </select>
-            <button class="btn btn-success" onclick="addProduct()">Add Product</button>
+        <!-- Products Tab -->
+        <div id="productsTab" class="tab-content" style="display:none;">
+            <div class="controls" style="margin-bottom: 30px;">
+                <h3 style="margin-right: 20px;">Add Product</h3>
+                <input type="text" id="productName" placeholder="Product Name" style="width:160px;" />
+                <input type="text" id="productCode" placeholder="Product Code" style="width:120px;" />
+                <input type="text" id="productCategory" placeholder="Category" style="width:120px;" />
+                <input type="text" id="productDescription" placeholder="Description" style="width:200px;" />
+                <select id="productActive" style="width:100px;">
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                </select>
+                <button class="btn btn-success" onclick="addProduct()">Add Product</button>
+            </div>
+            <!-- Future: List products here -->
+        </div>
+
+        <!-- Placeholder tabs for future features -->
+        <div id="salesmenTab" class="tab-content" style="display:none;">
+            <div class="controls" style="margin-bottom: 30px;">
+                <h3>Salesmen Management (Coming Soon)</h3>
+            </div>
+        </div>
+        <div id="customersTab" class="tab-content" style="display:none;">
+            <div class="controls" style="margin-bottom: 30px;">
+                <h3>Customer Updates (Coming Soon)</h3>
+            </div>
         </div>
 
         <div class="stats">
