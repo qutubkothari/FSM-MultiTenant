@@ -3,16 +3,28 @@ runtime: python312
 
 # Handlers for serving static files
 handlers:
-  # Serve admin dashboard at root
+  # Serve mobile web app at root (for salesmen)
   - url: /
+    static_files: mobile-web/index.html
+    upload: mobile-web/index.html
+    secure: always
+
+  # Serve admin dashboard
+  - url: /admin
     static_files: admin/index.html
     upload: admin/index.html
     secure: always
 
   # Serve all admin files
-  - url: /(.*)
+  - url: /admin/(.*)
     static_files: admin/\1
     upload: admin/.*
+    secure: always
+
+  # Serve all mobile-web files
+  - url: /(.*)
+    static_files: mobile-web/\1
+    upload: mobile-web/.*
     secure: always
 
 # Automatic scaling configuration
