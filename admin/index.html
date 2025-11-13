@@ -188,6 +188,7 @@
             <p>Field Sales Management - Visit Analytics</p>
         </header>
 
+
         <div class="controls">
             <input type="date" id="startDate" />
             <input type="date" id="endDate" />
@@ -196,6 +197,20 @@
             </select>
             <button class="btn btn-primary" onclick="loadVisits()">Filter</button>
             <button class="btn btn-success" onclick="exportToExcel()">Export to Excel</button>
+        </div>
+
+        <!-- Product Addition Form -->
+        <div class="controls" style="margin-bottom: 30px;">
+            <h3 style="margin-right: 20px;">Add Product</h3>
+            <input type="text" id="productName" placeholder="Product Name" style="width:160px;" />
+            <input type="text" id="productCode" placeholder="Product Code" style="width:120px;" />
+            <input type="text" id="productCategory" placeholder="Category" style="width:120px;" />
+            <input type="text" id="productDescription" placeholder="Description" style="width:200px;" />
+            <select id="productActive" style="width:100px;">
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+            </select>
+            <button class="btn btn-success" onclick="addProduct()">Add Product</button>
         </div>
 
         <div class="stats">
@@ -244,6 +259,37 @@
     </div>
 
     <script>
+        // Add Product Logic
+        async function addProduct() {
+            const name = document.getElementById('productName').value.trim();
+            const code = document.getElementById('productCode').value.trim();
+            const category = document.getElementById('productCategory').value.trim();
+            const description = document.getElementById('productDescription').value.trim();
+            const is_active = document.getElementById('productActive').value === 'true';
+
+            if (!name || !code) {
+                alert('Product name and code are required.');
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from('products')
+                .insert({ name, code, category, description, is_active })
+                .select();
+
+            if (error) {
+                alert('Error adding product: ' + error.message);
+            } else {
+                alert('Product added successfully!');
+                // Optionally clear form
+                document.getElementById('productName').value = '';
+                document.getElementById('productCode').value = '';
+                document.getElementById('productCategory').value = '';
+                document.getElementById('productDescription').value = '';
+                document.getElementById('productActive').value = 'true';
+                // Optionally reload visits/products if needed
+            }
+        }
         // Initialize Supabase
         const SUPABASE_URL = 'https://ktvrffbccgxtaststlhw.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_sNhpQ5W6i_KuIPcT6bjjnw_BcJwPljV';
