@@ -1,0 +1,31 @@
+# FSM Mobile App - Web Version
+runtime: python312
+
+handlers:
+  # Serve index.html at root
+  - url: /
+    static_files: dist/index.html
+    upload: dist/index.html
+    secure: always
+
+  # Serve all assets
+  - url: /assets/(.*)
+    static_files: dist/assets/\1
+    upload: dist/assets/.*
+    secure: always
+
+  # Serve JS bundles
+  - url: /_expo/static/(.*)
+    static_files: dist/_expo/static/\1
+    upload: dist/_expo/static/.*
+    secure: always
+
+  # Fallback to index.html for SPA routing
+  - url: /(.*)
+    static_files: dist/index.html
+    upload: dist/index.html
+    secure: always
+
+automatic_scaling:
+  min_instances: 0
+  max_instances: 2

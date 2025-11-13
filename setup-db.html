@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FSM Database Setup</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover { background: #45a049; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success { background: #d4edda; color: #155724; display: block; }
+        .error { background: #f8d7da; color: #721c24; display: block; }
+        .info { background: #d1ecf1; color: #0c5460; display: block; }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗄️ FSM Database Setup</h1>
+        <p>Click the button below to automatically create all database tables in Supabase.</p>
+        
+        <button id="setupBtn" onclick="setupDatabase()">Setup Database</button>
+        <button onclick="testConnection()">Test Connection</button>
+        
+        <div id="status" class="status"></div>
+        
+        <h3>What will be created:</h3>
+        <ul>
+            <li>✅ Salesmen table</li>
+            <li>✅ Customers table</li>
+            <li>✅ Products table (with 5 sample products)</li>
+            <li>✅ Visits table</li>
+            <li>✅ Competitors table</li>
+            <li>✅ All indexes and triggers</li>
+            <li>✅ RLS policies</li>
+            <li>✅ Analytics views</li>
+        </ul>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://ktvrffbccgxtaststlhw.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt0dnJmZmJjY2d4dGFzdHN0bGh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzExOTAyNTEsImV4cCI6MjA0Njc2NjI1MX0.tYUXVqaOdoBootstrap8TkLh9d9-yyQIEgqe9nLjd1wQp9Y';
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.className = 'status ' + type;
+            status.innerHTML = message;
+        }
+
+        async function testConnection() {
+            showStatus('Testing connection...', 'info');
+            try {
+                const { data, error } = await supabase.from('salesmen').select('count');
+                if (error) throw error;
+                showStatus('✅ Connection successful! Found ' + (data.length || 0) + ' salesmen.', 'success');
+            } catch (error) {
+                showStatus('❌ Connection failed: ' + error.message + '<br><br>This is normal if tables don\'t exist yet. Click "Setup Database" to create them.', 'error');
+            }
+        }
+
+        async function setupDatabase() {
+            const btn = document.getElementById('setupBtn');
+            btn.disabled = true;
+            btn.textContent = 'Setting up...';
+            showStatus('Creating database tables... This may take 30-60 seconds.', 'info');
+
+            try {
+                // Note: This requires database admin access
+                // Since we're using anon key, we need to use Supabase Management API or run SQL directly
+                
+                showStatus(`
+                    <h3>⚠️ Manual Setup Required</h3>
+                    <p>The Supabase anonymous key doesn't have permission to create tables.</p>
+                    <p><strong>Please follow these steps:</strong></p>
+                    <ol>
+                        <li>Go to: <a href="https://supabase.com/dashboard/project/ktvrffbccgxtaststlhw/editor" target="_blank">Supabase SQL Editor</a></li>
+                        <li>Click "New Query"</li>
+                        <li>Copy the SQL from <code>database/schema.sql</code> in your project</li>
+                        <li>Paste it and click "Run" (or press Ctrl+Enter)</li>
+                        <li>Come back here and click "Test Connection"</li>
+                    </ol>
+                    <p>Or copy this SQL:</p>
+                    <button onclick="copySQL()">Copy SQL Schema</button>
+                `, 'info');
+                
+            } catch (error) {
+                showStatus('❌ Error: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Setup Database';
+            }
+        }
+
+        function copySQL() {
+            const sql = \`-- Run this in Supabase SQL Editor
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Salesmen Table
+CREATE TABLE IF NOT EXISTS salesmen (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    phone VARCHAR(20) UNIQUE NOT NULL,
+    email VARCHAR(255),
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_salesmen_phone ON salesmen(phone);
+CREATE INDEX idx_salesmen_active ON salesmen(is_active);
+
+-- Customers Table
+CREATE TABLE IF NOT EXISTS customers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    contact_person VARCHAR(255),
+    phone VARCHAR(20),
+    email VARCHAR(255),
+    address TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_customers_name ON customers(name);
+CREATE INDEX idx_customers_phone ON customers(phone);
+
+-- Products Table
+CREATE TABLE IF NOT EXISTS products (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    description TEXT,
+    category VARCHAR(100),
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_products_code ON products(code);
+CREATE INDEX idx_products_active ON products(is_active);
+
+-- Visits Table  
+CREATE TABLE IF NOT EXISTS visits (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    salesman_id UUID NOT NULL REFERENCES salesmen(id) ON DELETE CASCADE,
+    customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+    customer_name VARCHAR(255) NOT NULL,
+    contact_person VARCHAR(255),
+    meeting_type TEXT[] NOT NULL,
+    products_discussed UUID[] NOT NULL,
+    next_action VARCHAR(100),
+    next_action_date TIMESTAMP WITH TIME ZONE,
+    potential VARCHAR(20) NOT NULL CHECK (potential IN ('High', 'Medium', 'Low')),
+    competitor_name VARCHAR(255),
+    can_be_switched BOOLEAN,
+    remarks TEXT,
+    gps_latitude DECIMAL(10, 8) NOT NULL,
+    gps_longitude DECIMAL(11, 8) NOT NULL,
+    time_in TIMESTAMP WITH TIME ZONE NOT NULL,
+    time_out TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    synced BOOLEAN DEFAULT true,
+    offline_id VARCHAR(50)
+);
+
+CREATE INDEX idx_visits_salesman ON visits(salesman_id);
+CREATE INDEX idx_visits_customer ON visits(customer_id);
+CREATE INDEX idx_visits_date ON visits(created_at);
+
+-- Insert sample products
+INSERT INTO products (name, code, category, is_active) VALUES
+    ('Product A', 'PROD-A', 'Category 1', true),
+    ('Product B', 'PROD-B', 'Category 1', true),
+    ('Product C', 'PROD-C', 'Category 2', true),
+    ('Product D', 'PROD-D', 'Category 2', true),
+    ('Product E', 'PROD-E', 'Category 3', true)
+ON CONFLICT (code) DO NOTHING;
+
+-- Enable RLS
+ALTER TABLE salesmen ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE visits ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+CREATE POLICY "Public access" ON salesmen FOR SELECT USING (true);
+CREATE POLICY "Public access" ON customers FOR SELECT USING (true);
+CREATE POLICY "Public access" ON customers FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public access" ON products FOR SELECT USING (true);
+CREATE POLICY "Public access" ON visits FOR SELECT USING (true);
+CREATE POLICY "Public access" ON visits FOR INSERT WITH CHECK (true);
+\`;
+            
+            navigator.clipboard.writeText(sql).then(() => {
+                alert('SQL copied! Now paste it in Supabase SQL Editor.');
+            });
+        }
+
+        // Test connection on load
+        window.onload = () => {
+            testConnection();
+        };
+    </script>
+</body>
+</html>

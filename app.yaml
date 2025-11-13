@@ -1,34 +1,21 @@
 # Google Cloud App Engine Configuration
-runtime: nodejs18
+runtime: python312
 
-# Automatic scaling configuration
-automatic_scaling:
-  min_instances: 1
-  max_instances: 10
-  target_cpu_utilization: 0.65
-  target_throughput_utilization: 0.65
-
-# Environment variables
-env_variables:
-  NODE_ENV: 'production'
-
-# Handlers for serving static files and app
+# Handlers for serving static files
 handlers:
-  - url: /admin
-    static_dir: admin
+  # Serve admin dashboard at root
+  - url: /
+    static_files: admin/index.html
+    upload: admin/index.html
     secure: always
 
-  - url: /admin/.*
+  # Serve all admin files
+  - url: /(.*)
     static_files: admin/\1
     upload: admin/.*
     secure: always
 
-  - url: /.*
-    script: auto
-    secure: always
-
-# Instance resources
-resources:
-  cpu: 1
-  memory_gb: 0.5
-  disk_size_gb: 10
+# Automatic scaling configuration
+automatic_scaling:
+  min_instances: 0
+  max_instances: 1

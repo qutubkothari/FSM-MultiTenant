@@ -40,13 +40,7 @@
     },
     "plugins": [
       "expo-location",
-      "expo-notifications",
-      [
-        "expo-sqlite",
-        {
-          "enableFTS": true
-        }
-      ]
+      "expo-notifications"
     ]
   }
 }
