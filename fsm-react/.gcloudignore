@@ -1,0 +1,9 @@
+﻿.gcloudignore
+.git
+.gitignore
+node_modules/
+src/
+*.json
+*.ts
+index.html
+.env

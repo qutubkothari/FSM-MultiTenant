@@ -44,15 +44,14 @@
             margin-bottom: 10px;
         }
 
-        <style>
-            .md3-app-bar {
-                background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                padding: 18px 32px;
-                border-radius: 16px;
-                margin-bottom: 24px;
-                box-shadow: 0 2px 12px rgba(102,126,234,0.12);
-            }
+        .md3-app-bar {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 18px 32px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 12px rgba(102,126,234,0.12);
+        }
             .app-bar-content {
                 display: flex;
                 align-items: center;
@@ -173,18 +172,14 @@
                 animation: fadeIn 0.3s;
             }
             @keyframes fadeIn {
-                from { opacity: 0; }
-                to { opacity: 1; }
-            }
-        </style>
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .btn-success {
             background: #34C759;
             color: white;
-        }
-
-        .btn-success:hover {
+        }        .btn-success:hover {
             background: #28a745;
         }
 
@@ -304,7 +299,7 @@
         <nav class="admin-tabs">
             <button class="tab-btn active" id="tabVisits" onclick="showTab('visits')">Visits</button>
             <button class="tab-btn" id="tabProducts" onclick="showTab('products')">Products</button>
-            <button class="tab-btn" id="tabSalesmen" onclick="showTab('salesmen')" disabled>Salesmen</button>
+            <button class="tab-btn" id="tabSalesmen" onclick="showTab('salesmen')">Salesmen</button>
             <button class="tab-btn" id="tabCustomers" onclick="showTab('customers')" disabled>Customers</button>
         </nav>
 
@@ -382,10 +377,39 @@
             <!-- Future: List products here -->
         </div>
 
-        <!-- Placeholder tabs for future features -->
+        <!-- Salesmen Tab -->
         <div id="salesmenTab" class="tab-content" style="display:none;">
             <div class="controls" style="margin-bottom: 30px;">
-                <h3>Salesmen Management (Coming Soon)</h3>
+                <h3 style="margin-right: 20px;">Add Salesman</h3>
+                <input type="text" id="salesmanName" placeholder="Name" style="width:180px;" />
+                <input type="text" id="salesmanPhone" placeholder="Phone Number" style="width:150px;" />
+                <input type="email" id="salesmanEmail" placeholder="Email (optional)" style="width:200px;" />
+                <select id="salesmanActive" style="width:100px;">
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                </select>
+                <button class="btn btn-success" onclick="addSalesman()">Add Salesman</button>
+            </div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Total Visits</th>
+                            <th>Joined Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="salesmenTableBody">
+                        <tr>
+                            <td colspan="7" class="loading">Loading salesmen...</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
         <div id="customersTab" class="tab-content" style="display:none;">
@@ -471,6 +495,135 @@
                 // Optionally reload visits/products if needed
             }
         }
+
+        // Salesmen Management Functions
+        async function loadSalesmen() {
+            const tbody = document.getElementById('salesmenTableBody');
+            tbody.innerHTML = '<tr><td colspan="7" class="loading">Loading salesmen...</td></tr>';
+
+            const { data: salesmen, error } = await supabase
+                .from('salesmen')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                tbody.innerHTML = '<tr><td colspan="7" class="loading">Error loading salesmen: ' + error.message + '</td></tr>';
+                return;
+            }
+
+            if (!salesmen || salesmen.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="loading">No salesmen found</td></tr>';
+                return;
+            }
+
+            // Get visit counts for each salesman
+            const { data: visitCounts } = await supabase
+                .from('visits')
+                .select('salesman_id')
+                .then(result => {
+                    const counts = {};
+                    if (result.data) {
+                        result.data.forEach(v => {
+                            counts[v.salesman_id] = (counts[v.salesman_id] || 0) + 1;
+                        });
+                    }
+                    return { data: counts };
+                });
+
+            tbody.innerHTML = salesmen.map(s => `
+                <tr>
+                    <td>${s.name}</td>
+                    <td>${s.phone}</td>
+                    <td>${s.email || '-'}</td>
+                    <td>
+                        <span style="padding: 4px 12px; border-radius: 12px; font-size: 0.85em; 
+                            background: ${s.is_active ? '#d4edda' : '#f8d7da'}; 
+                            color: ${s.is_active ? '#155724' : '#721c24'};">
+                            ${s.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                    <td>${visitCounts[s.id] || 0}</td>
+                    <td>${new Date(s.created_at).toLocaleDateString()}</td>
+                    <td>
+                        <button class="btn btn-sm" onclick="toggleSalesmanStatus('${s.id}', ${!s.is_active})" 
+                            style="padding: 6px 12px; font-size: 0.85em; margin-right: 5px;">
+                            ${s.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button class="btn btn-sm" onclick="deleteSalesman('${s.id}')" 
+                            style="padding: 6px 12px; font-size: 0.85em; background: #dc3545;">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function addSalesman() {
+            const name = document.getElementById('salesmanName').value.trim();
+            const phone = document.getElementById('salesmanPhone').value.trim();
+            const email = document.getElementById('salesmanEmail').value.trim();
+            const is_active = document.getElementById('salesmanActive').value === 'true';
+
+            if (!name || !phone) {
+                alert('Name and phone number are required.');
+                return;
+            }
+
+            // Validate phone number (basic)
+            if (phone.length < 10) {
+                alert('Please enter a valid phone number (at least 10 digits).');
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from('salesmen')
+                .insert({ name, phone, email: email || null, is_active })
+                .select();
+
+            if (error) {
+                alert('Error adding salesman: ' + error.message);
+            } else {
+                alert('Salesman added successfully!');
+                document.getElementById('salesmanName').value = '';
+                document.getElementById('salesmanPhone').value = '';
+                document.getElementById('salesmanEmail').value = '';
+                document.getElementById('salesmanActive').value = 'true';
+                loadSalesmen();
+            }
+        }
+
+        async function toggleSalesmanStatus(id, newStatus) {
+            const { error } = await supabase
+                .from('salesmen')
+                .update({ is_active: newStatus })
+                .eq('id', id);
+
+            if (error) {
+                alert('Error updating salesman: ' + error.message);
+            } else {
+                alert('Salesman status updated!');
+                loadSalesmen();
+            }
+        }
+
+        async function deleteSalesman(id) {
+            if (!confirm('Are you sure you want to delete this salesman? This will also delete all their visits.')) {
+                return;
+            }
+
+            const { error } = await supabase
+                .from('salesmen')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                alert('Error deleting salesman: ' + error.message);
+            } else {
+                alert('Salesman deleted successfully!');
+                loadSalesmen();
+            }
+        }
+
         // Initialize Supabase
         const SUPABASE_URL = 'https://ktvrffbccgxtaststlhw.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_sNhpQ5W6i_KuIPcT6bjjnw_BcJwPljV';
@@ -612,6 +765,32 @@
             
             const filename = `FSM_Visits_${new Date().toISOString().split('T')[0]}.xlsx`;
             XLSX.writeFile(workbook, filename);
+        }
+
+        // Tab Management
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName + 'Tab').style.display = 'block';
+            
+            // Add active class to clicked button
+            document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
+
+            // Load data for specific tabs
+            if (tabName === 'salesmen') {
+                loadSalesmen();
+            } else if (tabName === 'visits') {
+                loadVisits();
+            }
         }
 
         // Initialize

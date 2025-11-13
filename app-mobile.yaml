@@ -2,6 +2,18 @@
 runtime: python312
 
 handlers:
+  # Serve admin dashboard
+  - url: /admin.html
+    static_files: dist/admin.html
+    upload: dist/admin.html
+    secure: always
+
+  # Serve setup page
+  - url: /setup.html
+    static_files: dist/setup.html
+    upload: dist/setup.html
+    secure: always
+
   # Serve index.html at root
   - url: /
     static_files: dist/index.html

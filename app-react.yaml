@@ -1,0 +1,24 @@
+runtime: python312
+
+handlers:
+  # Serve index.html at root
+  - url: /
+    static_files: dist-react/index.html
+    upload: dist-react/index.html
+    secure: always
+
+  # Serve assets
+  - url: /assets/(.*)
+    static_files: dist-react/assets/\1
+    upload: dist-react/assets/.*
+    secure: always
+
+  # SPA fallback
+  - url: /.*
+    static_files: dist-react/index.html
+    upload: dist-react/index.html
+    secure: always
+
+env_variables:
+  VITE_SUPABASE_URL: "https://ktvrffbccgxtaststlhw.supabase.co"
+  VITE_SUPABASE_ANON_KEY: "sb_publishable_sNhpQ5W6i_KuIPcT6bjjnw_BcJwPljV"

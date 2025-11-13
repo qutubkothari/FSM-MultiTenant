@@ -1,0 +1,43 @@
+runtime: python312
+
+handlers:
+  # Serve index.html for all routes (SPA routing)
+  - url: /
+    static_files: dist/index.html
+    upload: dist/index.html
+    secure: always
+
+  # Serve all static assets
+  - url: /assets/(.*)
+    static_files: dist/assets/\1
+    upload: dist/assets/.*
+    secure: always
+
+  # Service worker
+  - url: /sw.js
+    static_files: dist/sw.js
+    upload: dist/sw.js
+    secure: always
+
+  # Manifest
+  - url: /manifest.webmanifest
+    static_files: dist/manifest.webmanifest
+    upload: dist/manifest.webmanifest
+    secure: always
+
+  # Icons
+  - url: /(.*\.(png|ico|svg))
+    static_files: dist/\1
+    upload: dist/.*\.(png|ico|svg)
+    secure: always
+
+  # Fallback to index.html for all other routes (SPA)
+  - url: /.*
+    static_files: dist/index.html
+    upload: dist/index.html
+    secure: always
+
+automatic_scaling:
+  min_instances: 0
+  max_instances: 2
+  target_cpu_utilization: 0.65

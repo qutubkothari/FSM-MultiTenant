@@ -128,7 +128,7 @@
         }
 
         function copySQL() {
-            const sql = \`-- Run this in Supabase SQL Editor
+            const sql = `-- Run this in Supabase SQL Editor
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Salesmen Table
@@ -226,7 +226,7 @@ CREATE POLICY "Public access" ON customers FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public access" ON products FOR SELECT USING (true);
 CREATE POLICY "Public access" ON visits FOR SELECT USING (true);
 CREATE POLICY "Public access" ON visits FOR INSERT WITH CHECK (true);
-\`;
+`;
             
             navigator.clipboard.writeText(sql).then(() => {
                 alert('SQL copied! Now paste it in Supabase SQL Editor.');
