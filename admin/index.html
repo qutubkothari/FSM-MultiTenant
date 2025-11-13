@@ -44,35 +44,139 @@
             margin-bottom: 10px;
         }
 
-        .controls {
-            background: #fff;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .btn-primary {
-            background: #007AFF;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #0056b3;
+        <style>
+            .md3-app-bar {
+                background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 18px 32px;
+                border-radius: 16px;
+                margin-bottom: 24px;
+                box-shadow: 0 2px 12px rgba(102,126,234,0.12);
+            }
+            .app-bar-content {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            .app-bar-logo {
+                height: 40px;
+                margin-right: 18px;
+            }
+            .app-bar-title {
+                font-size: 2rem;
+                font-weight: 700;
+                letter-spacing: 1px;
+            }
+            .app-bar-actions {
+                display: flex;
+                gap: 12px;
+            }
+            .md3-icon-btn {
+                background: none;
+                border: none;
+                color: white;
+                font-size: 1.4rem;
+                cursor: pointer;
+                padding: 8px;
+                border-radius: 50%;
+                transition: background 0.2s;
+            }
+            .md3-icon-btn:hover {
+                background: rgba(255,255,255,0.15);
+            }
+            .md3-tabs {
+                display: flex;
+                gap: 16px;
+                margin-bottom: 32px;
+                justify-content: flex-start;
+            }
+            .md3-tab-btn {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 12px 32px;
+                border: none;
+                border-radius: 32px;
+                background: #f3f4f6;
+                color: #333;
+                font-size: 1.1rem;
+                font-weight: 600;
+                cursor: pointer;
+                box-shadow: 0 2px 8px rgba(102,126,234,0.08);
+                transition: background 0.2s, color 0.2s;
+            }
+            .md3-tab-btn.active {
+                background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+                color: white;
+            }
+            .md3-card {
+                background: #fff;
+                border-radius: 18px;
+                box-shadow: 0 2px 12px rgba(102,126,234,0.10);
+                padding: 32px;
+                margin-bottom: 32px;
+            }
+            .product-card-header {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 18px;
+            }
+            .product-card-header h2 {
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: #667eea;
+            }
+            .product-card-content {
+                display: flex;
+                flex-direction: column;
+                gap: 18px;
+            }
+            .product-form-row {
+                display: flex;
+                gap: 14px;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+            .md3-input {
+                padding: 12px 18px;
+                border-radius: 12px;
+                border: 1px solid #e0e0e0;
+                font-size: 1rem;
+                background: #f8f9fa;
+                color: #333;
+                transition: border 0.2s;
+            }
+            .md3-input:focus {
+                border: 1.5px solid #667eea;
+                outline: none;
+            }
+            .md3-fab {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 48px;
+                height: 48px;
+                font-size: 1.5rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 4px 16px rgba(102,126,234,0.18);
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+            .md3-fab:hover {
+                background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+            }
+            .tab-content {
+                animation: fadeIn 0.3s;
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+        </style>
         }
 
         .btn-success {
@@ -184,9 +288,16 @@
 <body>
 
     <div class="container">
-        <header>
-            <h1>FSM Admin Dashboard</h1>
-            <p>Field Sales Management - Visit Analytics</p>
+        <header class="md3-app-bar">
+            <div class="app-bar-content">
+                <img src="/mobile-web/logo.png" alt="Logo" class="app-bar-logo">
+                <h1 class="app-bar-title">FSM Admin</h1>
+                <div class="app-bar-actions">
+                    <button class="md3-icon-btn" title="Theme"><i class="fas fa-moon"></i></button>
+                    <button class="md3-icon-btn" title="Settings"><i class="fas fa-cog"></i></button>
+                    <button class="md3-icon-btn" title="Logout"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </div>
         </header>
 
         <!-- Tab Navigation -->
