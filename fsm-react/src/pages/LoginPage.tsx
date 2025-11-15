@@ -8,12 +8,10 @@ import {
   Typography,
   Alert,
   InputAdornment,
-  Avatar,
 } from '@mui/material';
 import {
   Phone as PhoneIcon,
   Person as PersonIcon,
-  TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '../store/authStore';
 
@@ -69,17 +67,17 @@ export default function LoginPage() {
         >
           {/* Logo & Title */}
           <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <Avatar
+            <Box
+              component="img"
+              src="/hylite-logo.svg"
+              alt="Hylite Logo"
               sx={{
-                width: 80,
-                height: 80,
+                width: '180px',
+                height: 'auto',
                 margin: '0 auto 20px',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)',
+                display: 'block',
               }}
-            >
-              <TrendingUpIcon sx={{ fontSize: 40 }} />
-            </Avatar>
+            />
             <Typography
               variant="h4"
               gutterBottom
@@ -90,7 +88,7 @@ export default function LoginPage() {
                 WebkitTextFillColor: 'transparent',
               }}
             >
-              FSM System
+              Hylite FSM
             </Typography>
             <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
               Field Sales Management System

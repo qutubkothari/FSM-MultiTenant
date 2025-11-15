@@ -27,6 +27,8 @@ import {
   Person as PersonIcon,
   Logout as LogoutIcon,
   AccountCircle,
+  Assessment as AssessmentIcon,
+  Flag as FlagIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '../store/authStore';
 import DashboardOverview from '../components/admin/DashboardOverview';
@@ -34,10 +36,12 @@ import VisitsManagement from '../components/admin/VisitsManagement';
 import ProductsManagement from '../components/admin/ProductsManagement';
 import SalesmenManagement from '../components/admin/SalesmenManagement';
 import CustomersManagement from '../components/admin/CustomersManagement';
+import ReportsManagement from '../components/admin/ReportsManagement';
+import TargetsManagement from '../components/admin/TargetsManagement';
 
 const drawerWidth = 260;
 
-type TabType = 'dashboard' | 'visits' | 'products' | 'salesmen' | 'customers';
+type TabType = 'dashboard' | 'visits' | 'products' | 'salesmen' | 'customers' | 'reports' | 'targets';
 
 export default function AdminDashboard() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -70,6 +74,8 @@ export default function AdminDashboard() {
     { id: 'products' as TabType, label: 'Products', icon: <InventoryIcon /> },
     { id: 'salesmen' as TabType, label: 'Salesmen', icon: <PeopleIcon /> },
     { id: 'customers' as TabType, label: 'Customers', icon: <PersonIcon /> },
+    { id: 'targets' as TabType, label: 'Targets', icon: <FlagIcon /> },
+    { id: 'reports' as TabType, label: 'Reports', icon: <AssessmentIcon /> },
   ];
 
   const drawer = (
@@ -79,14 +85,38 @@ export default function AdminDashboard() {
           p: 3,
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
         }}
       >
-        <Typography variant="h5" fontWeight={700}>
-          FSM Admin
-        </Typography>
-        <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5 }}>
-          Management Portal
-        </Typography>
+        <Box
+          sx={{
+            background: 'white',
+            padding: '8px 12px',
+            borderRadius: 1,
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          <Box
+            component="img"
+            src="/hylite-logo.svg"
+            alt="Hylite"
+            sx={{
+              height: 32,
+              width: 'auto',
+            }}
+          />
+        </Box>
+        <Box>
+          <Typography variant="h6" fontWeight={700}>
+            Hylite FSM
+          </Typography>
+          <Typography variant="caption" sx={{ opacity: 0.9 }}>
+            Admin Portal
+          </Typography>
+        </Box>
       </Box>
       <Divider />
       <List sx={{ px: 2, py: 2 }}>
@@ -220,6 +250,8 @@ export default function AdminDashboard() {
         {activeTab === 'products' && <ProductsManagement />}
         {activeTab === 'salesmen' && <SalesmenManagement />}
         {activeTab === 'customers' && <CustomersManagement />}
+        {activeTab === 'targets' && <TargetsManagement />}
+        {activeTab === 'reports' && <ReportsManagement />}
       </Box>
     </Box>
   );

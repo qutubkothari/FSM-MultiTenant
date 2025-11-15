@@ -72,3 +72,58 @@ export interface DashboardStats {
   totalRevenue: number;
   monthlyRevenue: number;
 }
+
+export interface ProductTarget {
+  product_id: string;
+  product_name?: string;
+  target_quantity: number;
+}
+
+export interface SalesmanTarget {
+  id: string;
+  salesman_id: string;
+  salesman_name?: string;
+  month: number;
+  year: number;
+  visits_per_month: number;
+  visits_per_day: number;
+  new_visits_per_month: number;
+  repeat_visits_per_month: number;
+  orders_per_month: number;
+  order_value_per_month: number;
+  product_targets: ProductTarget[];
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+}
+
+export interface TargetPerformance {
+  salesman_id: string;
+  salesman_name: string;
+  month: number;
+  year: number;
+  
+  // Targets
+  target_visits: number;
+  target_daily_visits: number;
+  target_new_visits: number;
+  target_repeat_visits: number;
+  target_orders: number;
+  target_order_value: number;
+  
+  // Actuals
+  actual_visits: number;
+  actual_daily_visits: number;
+  actual_new_visits: number;
+  actual_repeat_visits: number;
+  actual_orders: number;
+  actual_order_value: number;
+  
+  // Achievement percentages
+  visits_achievement: number;
+  new_visits_achievement: number;
+  repeat_visits_achievement: number;
+  orders_achievement: number;
+  order_value_achievement: number;
+  overall_achievement: number;
+}

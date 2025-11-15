@@ -3,28 +3,55 @@ runtime: python312
 
 # Handlers for serving static files
 handlers:
-  # Serve mobile web app at root (for salesmen)
+  # Service Worker
+  - url: /sw.js
+    static_files: dist-react/sw.js
+    upload: dist-react/sw.js
+    secure: always
+    expiration: "0s"
+
+  # Workbox files
+  - url: /workbox-(.*)\.js
+    static_files: dist-react/workbox-\1.js
+    upload: dist-react/workbox-.*\.js
+    secure: always
+
+  # PWA files
+  - url: /(manifest\.webmanifest|registerSW\.js)
+    static_files: dist-react/\1
+    upload: dist-react/(manifest\.webmanifest|registerSW\.js)
+    secure: always
+
+
+  # Static assets (JS, CSS, images)
+  - url: /assets/(.*)
+    static_files: dist-react/assets/\1
+    upload: dist-react/assets/.*
+    secure: always
+    expiration: "7d"
+
+  # Serve SVG and PNG files from dist-react root
+  - url: /(.*\.svg)
+    static_files: dist-react/\1
+    upload: dist-react/.*\.svg
+    secure: always
+    expiration: "7d"
+  - url: /(.*\.png)
+    static_files: dist-react/\1
+    upload: dist-react/.*\.png
+    secure: always
+    expiration: "7d"
+
+  # Root - serve React app
   - url: /
-    static_files: mobile-web/index.html
-    upload: mobile-web/index.html
+    static_files: dist-react/index.html
+    upload: dist-react/index.html
     secure: always
 
-  # Serve admin dashboard
-  - url: /admin
-    static_files: admin/index.html
-    upload: admin/index.html
-    secure: always
-
-  # Serve all admin files
-  - url: /admin/(.*)
-    static_files: admin/\1
-    upload: admin/.*
-    secure: always
-
-  # Serve all mobile-web files
+  # All other routes - serve React app (for client-side routing)
   - url: /(.*)
-    static_files: mobile-web/\1
-    upload: mobile-web/.*
+    static_files: dist-react/index.html
+    upload: dist-react/index.html
     secure: always
 
 # Automatic scaling configuration

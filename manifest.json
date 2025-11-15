@@ -1,11 +1,11 @@
 {
-  "name": "FSM Mobile App",
-  "short_name": "FSM",
+  "name": "Hylite FSM - Field Sales Management",
+  "short_name": "Hylite FSM",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f5f5f5",
-  "theme_color": "#007AFF",
-  "description": "Field Sales Management Mobile App",
+  "theme_color": "#667eea",
+  "description": "Hylite Field Sales Management Mobile App",
   "icons": [
     {
       "src": "icon-192.png",

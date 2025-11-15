@@ -1,0 +1,18 @@
+<svg width="150" height="80" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .hylite-text { font-family: Arial, sans-serif; font-weight: bold; font-size: 32px; }
+      .blue-text { fill: #1976D2; }
+      .red-text { fill: #D32F2F; }
+      .underline { stroke: #D32F2F; stroke-width: 3; }
+    </style>
+  </defs>
+  
+  <!-- HYLITE text -->
+  <text x="10" y="45" class="hylite-text blue-text">HYL</text>
+  <text x="78" y="45" class="hylite-text red-text">i</text>
+  <text x="88" y="45" class="hylite-text blue-text">TE</text>
+  
+  <!-- Red underline -->
+  <line x1="10" y1="55" x2="140" y2="55" class="underline"/>
+</svg>

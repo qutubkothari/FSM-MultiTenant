@@ -54,8 +54,28 @@ export default function SalesmanDashboard() {
         }}
       >
         <Toolbar>
+          <Box
+            sx={{
+              background: 'white',
+              padding: '4px 10px',
+              borderRadius: 1,
+              display: 'flex',
+              alignItems: 'center',
+              mr: 2,
+            }}
+          >
+            <Box
+              component="img"
+              src="/hylite-logo.svg"
+              alt="Hylite"
+              sx={{
+                height: 26,
+                width: 'auto',
+              }}
+            />
+          </Box>
           <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
-            FSM Sales
+            Hylite FSM
           </Typography>
           <IconButton onClick={handleMenuOpen} size="large" color="inherit">
             <Avatar

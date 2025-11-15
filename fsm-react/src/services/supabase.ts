@@ -3,7 +3,17 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = 'https://ktvrffbccgxtaststlhw.supabase.co';
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: false,
+  },
+  global: {
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+  },
+});
 
 // Auth service
 export const authService = {
@@ -226,3 +236,95 @@ export const customerService = {
     if (error) throw error;
   },
 };
+
+// Targets service
+export const targetsService = {
+  async getTargets(salesmanId?: string, month?: number, year?: number) {
+    let query = supabase
+      .from('salesman_targets')
+      .select('*, salesmen(name)')
+      .order('year', { ascending: false })
+      .order('month', { ascending: false });
+
+    if (salesmanId) {
+      query = query.eq('salesman_id', salesmanId);
+    }
+    if (month !== undefined) {
+      query = query.eq('month', month);
+    }
+    if (year !== undefined) {
+      query = query.eq('year', year);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    
+    // Map salesman name
+    return data.map((target: any) => ({
+      ...target,
+      salesman_name: target.salesmen?.name || 'Unknown',
+    }));
+  },
+
+  async getTarget(salesmanId: string, month: number, year: number) {
+    const { data, error } = await supabase
+      .from('salesman_targets')
+      .select('*, salesmen(name)')
+      .eq('salesman_id', salesmanId)
+      .eq('month', month)
+      .eq('year', year)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error; // Ignore not found
+    
+    if (data) {
+      return {
+        ...data,
+        salesman_name: data.salesmen?.name || 'Unknown',
+      };
+    }
+    return null;
+  },
+
+  async createTarget(targetData: any) {
+    const { data, error } = await supabase
+      .from('salesman_targets')
+      .insert([targetData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async updateTarget(id: string, updates: any) {
+    const { data, error } = await supabase
+      .from('salesman_targets')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async upsertTarget(targetData: any) {
+    const { data, error } = await supabase
+      .from('salesman_targets')
+      .upsert([targetData], {
+        onConflict: 'salesman_id,month,year',
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async deleteTarget(id: string) {
+    const { error } = await supabase.from('salesman_targets').delete().eq('id', id);
+    if (error) throw error;
+  },
+};
+
