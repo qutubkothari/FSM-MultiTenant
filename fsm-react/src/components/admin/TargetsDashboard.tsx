@@ -46,12 +46,16 @@ interface PerformanceData {
   actual_visits: number;
   target_orders: number;
   actual_orders: number;
+  target_order_value: number;
+  actual_order_value: number;
   visits_achievement: number;
   orders_achievement: number;
+  order_value_achievement: number;
 }
 
 export default function TargetsDashboard() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
   const [performanceData, setPerformanceData] = useState<PerformanceData[]>([]);
@@ -69,9 +73,13 @@ export default function TargetsDashboard() {
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [targets, allVisits, salesmen] = await Promise.all([
-        targetsService.getTargets(undefined, month, year),
+        targetsService.getTargets(undefined, month, year).catch((err) => {
+          console.error('Error fetching targets:', err);
+          return []; // Return empty array if table doesn't exist
+        }),
         visitService.getVisits(),
         salesmanService.getSalesmen(),
       ]);
@@ -92,16 +100,22 @@ export default function TargetsDashboard() {
           const target = targets.find((t: any) => t.salesman_id === salesman.id);
           const salesmanVisits = filteredVisits.filter((v: any) => v.salesman_id === salesman.id);
           
-          const actualOrders = salesmanVisits.filter((v: any) =>
+          const orderVisits = salesmanVisits.filter((v: any) =>
             Array.isArray(v.meeting_type)
               ? v.meeting_type.includes('Order')
               : v.meeting_type === 'Order'
-          ).length;
+          );
+          
+          const actualOrders = orderVisits.length;
+          const actualOrderValue = orderVisits.reduce((sum: number, v: any) => sum + (v.order_value || 0), 0);
 
           const targetVisits = target?.visits_per_month || 0;
           const targetOrders = target?.orders_per_month || 0;
+          const targetOrderValue = target?.order_value_per_month || 0;
+          
           const visitsAchievement = targetVisits > 0 ? (salesmanVisits.length / targetVisits) * 100 : 0;
           const ordersAchievement = targetOrders > 0 ? (actualOrders / targetOrders) * 100 : 0;
+          const orderValueAchievement = targetOrderValue > 0 ? (actualOrderValue / targetOrderValue) * 100 : 0;
 
           return {
             salesman_name: salesman.name,
@@ -109,8 +123,11 @@ export default function TargetsDashboard() {
             actual_visits: salesmanVisits.length,
             target_orders: targetOrders,
             actual_orders: actualOrders,
+            target_order_value: targetOrderValue,
+            actual_order_value: actualOrderValue,
             visits_achievement: Math.round(visitsAchievement),
             orders_achievement: Math.round(ordersAchievement),
+            order_value_achievement: Math.round(orderValueAchievement),
           };
         });
 
@@ -134,6 +151,7 @@ export default function TargetsDashboard() {
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+      setError('Failed to load performance data. Please ensure the targets table exists in the database.');
     }
     setLoading(false);
   };
@@ -147,6 +165,9 @@ export default function TargetsDashboard() {
       'Target Orders': p.target_orders,
       'Actual Orders': p.actual_orders,
       'Orders Achievement %': p.orders_achievement,
+      'Target Order Value (₹)': p.target_order_value,
+      'Actual Order Value (₹)': p.actual_order_value,
+      'Order Value Achievement %': p.order_value_achievement,
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -172,6 +193,27 @@ export default function TargetsDashboard() {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
         <Typography>Loading dashboard...</Typography>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box p={3}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+        <Alert severity="info">
+          <Typography variant="body2" gutterBottom>
+            <strong>To activate the Performance Dashboard:</strong>
+          </Typography>
+          <Typography variant="body2" component="div">
+            1. Go to your Supabase dashboard<br/>
+            2. Navigate to SQL Editor<br/>
+            3. Run the SQL file: <code>database/create-targets-table.sql</code><br/>
+            4. Refresh this page
+          </Typography>
+        </Alert>
       </Box>
     );
   }
@@ -291,6 +333,28 @@ export default function TargetsDashboard() {
                   <Legend />
                   <Bar dataKey="target_orders" fill="#f093fb" name="Target" />
                   <Bar dataKey="actual_orders" fill="#4facfe" name="Actual" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Order Value Bar Chart */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" fontWeight={600} gutterBottom>
+                Order Value: Target vs Actual (₹)
+              </Typography>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={performanceData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="salesman_name" angle={-45} textAnchor="end" height={100} />
+                  <YAxis />
+                  <Tooltip formatter={(value) => `₹${value.toLocaleString()}`} />
+                  <Legend />
+                  <Bar dataKey="target_order_value" fill="#43e97b" name="Target Value" />
+                  <Bar dataKey="actual_order_value" fill="#fa709a" name="Actual Value" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -429,6 +493,48 @@ export default function TargetsDashboard() {
                           Achievement: {data.orders_achievement}%
                         </Typography>
                         {data.orders_achievement >= 100 ? (
+                          <Chip
+                            icon={<TrendingUpIcon />}
+                            label="Target Met"
+                            size="small"
+                            color="success"
+                          />
+                        ) : (
+                          <Chip
+                            icon={<TrendingDownIcon />}
+                            label="Below Target"
+                            size="small"
+                            color="warning"
+                          />
+                        )}
+                      </Box>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Box>
+                      <Box display="flex" justifyContent="space-between" mb={1}>
+                        <Typography variant="body2">Order Value</Typography>
+                        <Typography variant="body2" fontWeight={600}>
+                          ₹{data.actual_order_value.toLocaleString()} / ₹{data.target_order_value.toLocaleString()}
+                        </Typography>
+                      </Box>
+                      <LinearProgress
+                        variant="determinate"
+                        value={Math.min(data.order_value_achievement, 100)}
+                        sx={{
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: '#e0e0e0',
+                          '& .MuiLinearProgress-bar': {
+                            backgroundColor: getAchievementColor(data.order_value_achievement),
+                          },
+                        }}
+                      />
+                      <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
+                        <Typography variant="caption" color="text.secondary">
+                          Achievement: {data.order_value_achievement}%
+                        </Typography>
+                        {data.order_value_achievement >= 100 ? (
                           <Chip
                             icon={<TrendingUpIcon />}
                             label="Target Met"

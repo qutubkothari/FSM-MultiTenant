@@ -31,7 +31,6 @@ import {
   Flag as FlagIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '../store/authStore';
-import DashboardOverview from '../components/admin/DashboardOverview';
 import VisitsManagement from '../components/admin/VisitsManagement';
 import ProductsManagement from '../components/admin/ProductsManagement';
 import SalesmenManagement from '../components/admin/SalesmenManagement';
@@ -42,7 +41,7 @@ import TargetsDashboard from '../components/admin/TargetsDashboard';
 
 const drawerWidth = 260;
 
-type TabType = 'dashboard' | 'visits' | 'products' | 'salesmen' | 'customers' | 'reports' | 'targets' | 'performance';
+type TabType = 'dashboard' | 'visits' | 'products' | 'salesmen' | 'customers' | 'reports' | 'targets';
 
 export default function AdminDashboard() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -76,7 +75,6 @@ export default function AdminDashboard() {
     { id: 'salesmen' as TabType, label: 'Salesmen', icon: <PeopleIcon /> },
     { id: 'customers' as TabType, label: 'Customers', icon: <PersonIcon /> },
     { id: 'targets' as TabType, label: 'Targets', icon: <FlagIcon /> },
-    { id: 'performance' as TabType, label: 'Performance', icon: <AssessmentIcon /> },
     { id: 'reports' as TabType, label: 'Reports', icon: <AssessmentIcon /> },
   ];
 
@@ -247,13 +245,12 @@ export default function AdminDashboard() {
           mt: 8,
         }}
       >
-        {activeTab === 'dashboard' && <DashboardOverview />}
+        {activeTab === 'dashboard' && <TargetsDashboard />}
         {activeTab === 'visits' && <VisitsManagement />}
         {activeTab === 'products' && <ProductsManagement />}
         {activeTab === 'salesmen' && <SalesmenManagement />}
         {activeTab === 'customers' && <CustomersManagement />}
         {activeTab === 'targets' && <TargetsManagement />}
-        {activeTab === 'performance' && <TargetsDashboard />}
         {activeTab === 'reports' && <ReportsManagement />}
       </Box>
     </Box>

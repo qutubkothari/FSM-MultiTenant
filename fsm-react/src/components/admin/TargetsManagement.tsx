@@ -67,18 +67,35 @@ export default function TargetsManagement() {
 
   const loadData = async () => {
     setLoading(true);
+    setError('');
     try {
       const [targetsData, salesmenData, productsData] = await Promise.all([
-        targetsService.getTargets(),
+        targetsService.getTargets().catch((err) => {
+          console.error('Error fetching targets:', err);
+          // Log full error details
+          console.error('Error code:', err.code);
+          console.error('Error message:', err.message);
+          console.error('Error details:', err.details);
+          throw err;
+        }),
         salesmanService.getSalesmen(),
         productService.getProducts(),
       ]);
       setTargets(targetsData);
       setSalesmen(salesmenData.filter((s: any) => !s.is_admin));
       setProducts(productsData);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading data:', err);
-      setError('Failed to load data');
+      const errorMessage = err.message || 'Failed to load data';
+      const errorCode = err.code || '';
+      const errorDetails = err.details || '';
+      
+      // Show detailed error message
+      setError(`Error: ${errorMessage} (Code: ${errorCode}). Details: ${errorDetails || 'None'}`);
+      
+      if (err.code === '42P01' || errorMessage.includes('does not exist')) {
+        setError('TARGETS_TABLE_NOT_FOUND');
+      }
     }
     setLoading(false);
   };
@@ -211,9 +228,23 @@ export default function TargetsManagement() {
         </Box>
       </Box>
 
-      {error && (
+      {error && error !== 'TARGETS_TABLE_NOT_FOUND' && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
           {error}
+        </Alert>
+      )}
+
+      {error === 'TARGETS_TABLE_NOT_FOUND' && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <Typography variant="body2" gutterBottom>
+            <strong>⚠️ Targets table not found in database</strong>
+          </Typography>
+          <Typography variant="body2" component="div">
+            Please run the SQL migration to create the targets table:<br/>
+            1. Open Supabase Dashboard → SQL Editor<br/>
+            2. Run: <code>database/create-targets-table.sql</code><br/>
+            3. Click "Refresh" button above
+          </Typography>
         </Alert>
       )}
 

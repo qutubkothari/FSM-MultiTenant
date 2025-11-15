@@ -61,6 +61,7 @@ export default function NewVisitForm({ onSuccess }: Props) {
     location_address: '',
     time_in: new Date().toISOString(),
     visit_image: null as string | null,
+    order_value: 0,
   });
 
   const meetingTypes = [
@@ -263,6 +264,11 @@ export default function NewVisitForm({ onSuccess }: Props) {
       return;
     }
 
+    if (formData.meeting_type.includes('Order') && (!formData.order_value || formData.order_value <= 0)) {
+      setError('Please enter a valid order value');
+      return;
+    }
+
     if (!formData.visit_image) {
       setError('Please capture a photo of the location/office');
       return;
@@ -428,6 +434,23 @@ export default function NewVisitForm({ onSuccess }: Props) {
                 ))}
               </Box>
             </FormControl>
+
+            {/* Order Value - shown only if Order is selected */}
+            {formData.meeting_type.includes('Order') && (
+              <TextField
+                label="Order Value (₹)"
+                type="number"
+                value={formData.order_value || ''}
+                onChange={(e) => setFormData({ ...formData, order_value: parseFloat(e.target.value) || 0 })}
+                fullWidth
+                margin="normal"
+                required
+                InputProps={{
+                  startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
+                }}
+                helperText="Enter the order value in rupees"
+              />
+            )}
 
             {/* Products Discussed */}
             <FormControl component="fieldset" margin="normal" fullWidth>

@@ -242,7 +242,7 @@ export const targetsService = {
   async getTargets(salesmanId?: string, month?: number, year?: number) {
     let query = supabase
       .from('salesman_targets')
-      .select('*, salesmen(name)')
+      .select('*')
       .order('year', { ascending: false })
       .order('month', { ascending: false });
 
@@ -259,17 +259,25 @@ export const targetsService = {
     const { data, error } = await query;
     if (error) throw error;
     
-    // Map salesman name
+    // Fetch salesman names separately to avoid relationship ambiguity
+    const salesmenIds = [...new Set(data.map((t: any) => t.salesman_id))];
+    const { data: salesmenData } = await supabase
+      .from('salesmen')
+      .select('id, name')
+      .in('id', salesmenIds);
+    
+    const salesmenMap = new Map(salesmenData?.map((s: any) => [s.id, s.name]));
+    
     return data.map((target: any) => ({
       ...target,
-      salesman_name: target.salesmen?.name || 'Unknown',
+      salesman_name: salesmenMap.get(target.salesman_id) || 'Unknown',
     }));
   },
 
   async getTarget(salesmanId: string, month: number, year: number) {
     const { data, error } = await supabase
       .from('salesman_targets')
-      .select('*, salesmen(name)')
+      .select('*')
       .eq('salesman_id', salesmanId)
       .eq('month', month)
       .eq('year', year)
@@ -278,9 +286,16 @@ export const targetsService = {
     if (error && error.code !== 'PGRST116') throw error; // Ignore not found
     
     if (data) {
+      // Fetch salesman name separately
+      const { data: salesmanData } = await supabase
+        .from('salesmen')
+        .select('name')
+        .eq('id', salesmanId)
+        .single();
+      
       return {
         ...data,
-        salesman_name: data.salesmen?.name || 'Unknown',
+        salesman_name: salesmanData?.name || 'Unknown',
       };
     }
     return null;
