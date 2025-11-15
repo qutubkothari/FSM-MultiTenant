@@ -19,27 +19,10 @@ import {
   CircularProgress,
   Divider,
   Button,
-  Alert,
-  LinearProgress,
 } from '@mui/material';
 import {
   Download as DownloadIcon,
-  TrendingUp as TrendingUpIcon,
-  TrendingDown as TrendingDownIcon,
 } from '@mui/icons-material';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from 'recharts';
 import { visitService, salesmanService, productService, targetsService } from '../../services/supabase';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import * as XLSX from 'xlsx';
@@ -85,7 +68,6 @@ export default function ReportsManagement() {
   const [salesmanStats, setSalesmanStats] = useState<SalesmanStats[]>([]);
   const [customerStats, setCustomerStats] = useState<CustomerStats[]>([]);
   const [productStats, setProductStats] = useState<ProductStats[]>([]);
-  const [targets, setTargets] = useState<any[]>([]);
   const [summaryStats, setSummaryStats] = useState({
     total_visits: 0,
     total_orders: 0,
@@ -94,8 +76,6 @@ export default function ReportsManagement() {
     avg_visits_per_day: 0,
     overall_hit_ratio: 0,
   });
-
-  const COLORS = ['#667eea', '#f093fb', '#4facfe', '#43e97b', '#fa709a', '#30cfd0'];
 
   useEffect(() => {
     loadData();
@@ -114,8 +94,6 @@ export default function ReportsManagement() {
         productService.getProducts(),
         targetsService.getTargets(undefined, currentMonth, currentYear),
       ]);
-
-      setTargets(monthlyTargets);
 
       // Filter visits by date range
       const filteredVisits = filterVisitsByDateRange(allVisits);
@@ -152,7 +130,7 @@ export default function ReportsManagement() {
     });
   };
 
-  const calculateSalesmanStats = (filteredVisits: any[], allSalesmen: any[]) => {
+  const calculateSalesmanStats = (filteredVisits: any[], allSalesmen: any[], monthlyTargets: any[]) => {
     const stats: SalesmanStats[] = allSalesmen.map((salesman) => {
       const salesmanVisits = filteredVisits.filter(
         (v) => v.salesman_id === salesman.id
@@ -187,6 +165,19 @@ export default function ReportsManagement() {
         ? (orders / salesmanVisits.length) * 100 
         : 0;
 
+      // Get targets for this salesman
+      const salesmanTarget = monthlyTargets.find((t: any) => t.salesman_id === salesman.id);
+      
+      // Calculate achievements
+      const target_visits = salesmanTarget?.visits_per_month || 0;
+      const target_orders = salesmanTarget?.orders_per_month || 0;
+      const visits_achievement = target_visits > 0 
+        ? Math.round((salesmanVisits.length / target_visits) * 100) 
+        : 0;
+      const orders_achievement = target_orders > 0 
+        ? Math.round((orders / target_orders) * 100) 
+        : 0;
+
       return {
         salesman_id: salesman.id,
         salesman_name: salesman.name,
@@ -197,6 +188,12 @@ export default function ReportsManagement() {
         enquiries,
         followups,
         hit_ratio: Math.round(hit_ratio * 10) / 10,
+        target_visits,
+        target_orders,
+        target_new_visits: salesmanTarget?.new_visits_per_month || 0,
+        target_repeat_visits: salesmanTarget?.repeat_visits_per_month || 0,
+        visits_achievement,
+        orders_achievement,
       };
     });
 

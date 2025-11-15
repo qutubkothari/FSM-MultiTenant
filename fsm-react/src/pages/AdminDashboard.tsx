@@ -38,10 +38,11 @@ import SalesmenManagement from '../components/admin/SalesmenManagement';
 import CustomersManagement from '../components/admin/CustomersManagement';
 import ReportsManagement from '../components/admin/ReportsManagement';
 import TargetsManagement from '../components/admin/TargetsManagement';
+import TargetsDashboard from '../components/admin/TargetsDashboard';
 
 const drawerWidth = 260;
 
-type TabType = 'dashboard' | 'visits' | 'products' | 'salesmen' | 'customers' | 'reports' | 'targets';
+type TabType = 'dashboard' | 'visits' | 'products' | 'salesmen' | 'customers' | 'reports' | 'targets' | 'performance';
 
 export default function AdminDashboard() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -75,6 +76,7 @@ export default function AdminDashboard() {
     { id: 'salesmen' as TabType, label: 'Salesmen', icon: <PeopleIcon /> },
     { id: 'customers' as TabType, label: 'Customers', icon: <PersonIcon /> },
     { id: 'targets' as TabType, label: 'Targets', icon: <FlagIcon /> },
+    { id: 'performance' as TabType, label: 'Performance', icon: <AssessmentIcon /> },
     { id: 'reports' as TabType, label: 'Reports', icon: <AssessmentIcon /> },
   ];
 
@@ -251,6 +253,7 @@ export default function AdminDashboard() {
         {activeTab === 'salesmen' && <SalesmenManagement />}
         {activeTab === 'customers' && <CustomersManagement />}
         {activeTab === 'targets' && <TargetsManagement />}
+        {activeTab === 'performance' && <TargetsDashboard />}
         {activeTab === 'reports' && <ReportsManagement />}
       </Box>
     </Box>
