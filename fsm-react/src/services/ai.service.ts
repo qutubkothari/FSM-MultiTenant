@@ -3,15 +3,20 @@
 
 interface VisitRecommendation {
   customer: string;
-  reason: string;
+  reason?: string;
+  reasonKey?: string;
+  reasonParams?: Record<string, any>;
   priority: 'high' | 'medium' | 'low';
   suggestedProducts?: string[];
 }
 
 interface AIInsight {
   type: 'recommendation' | 'alert' | 'tip';
-  title: string;
-  description: string;
+  title?: string;
+  titleKey?: string;
+  description?: string;
+  descriptionKey?: string;
+  descriptionParams?: Record<string, any>;
   priority: 'high' | 'medium' | 'low';
 }
 
@@ -46,7 +51,8 @@ export const aiService = {
       if (!recentCustomers.has(customer)) {
         recommendations.push({
           customer,
-          reason: 'Not visited in over 7 days - follow-up recommended',
+          reasonKey: 'notVisitedInDays',
+          reasonParams: { days: 7 },
           priority: 'high',
           suggestedProducts: ['Product A', 'Product B'],
         });
@@ -70,15 +76,16 @@ export const aiService = {
     if (todayVisits.length > 5) {
       insights.push({
         type: 'tip',
-        title: 'Great Performance!',
-        description: `You've completed ${todayVisits.length} visits today. Keep up the excellent work!`,
+        titleKey: 'greatPerformance',
+        descriptionKey: 'visitsCompletedToday',
+        descriptionParams: { count: todayVisits.length },
         priority: 'high',
       });
     } else if (todayVisits.length === 0) {
       insights.push({
         type: 'alert',
-        title: 'Start Your Day',
-        description: 'No visits recorded today. Check your recommended customers below.',
+        titleKey: 'startYourDay',
+        descriptionKey: 'noVisitsToday',
         priority: 'medium',
       });
     }
@@ -93,8 +100,8 @@ export const aiService = {
     if (last7Days.length < 10) {
       insights.push({
         type: 'recommendation',
-        title: 'Increase Activity',
-        description: 'Your visit frequency is below target. Aim for at least 2-3 visits per day.',
+        titleKey: 'increaseActivity',
+        descriptionKey: 'visitFrequencyBelowTarget',
         priority: 'medium',
       });
     }
@@ -108,8 +115,9 @@ export const aiService = {
     if (successRate > 80) {
       insights.push({
         type: 'tip',
-        title: 'High Success Rate',
-        description: `${successRate}% of your visits are successful. Excellent conversion rate!`,
+        titleKey: 'highSuccessRate',
+        descriptionKey: 'excellentConversionRate',
+        descriptionParams: { rate: successRate },
         priority: 'high',
       });
     }

@@ -14,6 +14,9 @@ import {
   DialogActions,
   Divider,
   Grid,
+  List,
+  ListItem,
+  ListItemText,
 } from '@mui/material';
 import {
   Delete as DeleteIcon,
@@ -21,42 +24,80 @@ import {
   Refresh as RefreshIcon,
   Download as DownloadIcon,
   LocationOn as LocationIcon,
+  People as PeopleIcon,
 } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { visitService } from '../../services/supabase';
+import { supabase } from '../../services/supabase';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
+import { useTranslation } from 'react-i18next';
 
 export default function VisitsManagement() {
+  const { t } = useTranslation();
   const [visits, setVisits] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 25, // Load only 25 at a time
+  });
   const [migrating, setMigrating] = useState(false);
   const [migrationStatus, setMigrationStatus] = useState('');
   const [selectedVisit, setSelectedVisit] = useState<any>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [clientsDialogOpen, setClientsDialogOpen] = useState(false);
+  const [selectedSalesmanClients, setSelectedSalesmanClients] = useState<any[]>([]);
+  const [selectedSalesmanName, setSelectedSalesmanName] = useState('');
 
   useEffect(() => {
-  loadVisits();
-  loadProducts();
+    loadVisits();
+    loadProducts();
   }, []);
 
   const loadVisits = async () => {
     setLoading(true);
     try {
-      const data = await visitService.getVisits();
-      setVisits(data);
+      // Load only last 7 days for instant load
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      const { data } = await supabase
+        .from('visits')
+        .select('id, customer_name, salesman_name, meeting_type, visit_type, created_at, location_address, status')
+        .gte('created_at', sevenDaysAgo.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(100); // Hard limit for speed
+      
+      setVisits(data || []);
     } catch (error) {
       console.error('Error loading visits:', error);
     }
     setLoading(false);
   };
 
+  const handleViewClientsByfilter = (salesmanName: string) => {
+    const salesmanVisits = visits.filter(v => v.salesman_name === salesmanName);
+    const uniqueClients = Array.from(
+      new Set(salesmanVisits.map(v => JSON.stringify({
+        name: v.customer_name,
+        phone: v.customer_phone,
+        lastVisit: v.created_at
+      })))
+    ).map(str => JSON.parse(str));
+    
+    const sortedClients = uniqueClients.sort((a, b) => 
+      new Date(b.lastVisit).getTime() - new Date(a.lastVisit).getTime()
+    );
+    
+    setSelectedSalesmanName(salesmanName);
+    setSelectedSalesmanClients(sortedClients);
+    setClientsDialogOpen(true);
+  };
+
   const loadProducts = async () => {
     try {
-      const { productService } = await import('../../services/supabase');
-      const data = await productService.getProducts();
-      setProducts(data);
+      const { data } = await supabase.from('products').select('*');
+      setProducts(data || []);
     } catch (error) {
       console.error('Error loading products:', error);
     }
@@ -100,10 +141,10 @@ export default function VisitsManagement() {
           
           if (data && data.display_name) {
             // Update visit in database
-            const { visitService } = await import('../../services/supabase');
-            await visitService.updateVisit(visit.id, {
-              location_address: data.display_name
-            });
+            await supabase
+              .from('visits')
+              .update({ location_address: data.display_name })
+              .eq('id', visit.id);
             successCount++;
           } else {
             failCount++;
@@ -135,7 +176,7 @@ export default function VisitsManagement() {
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this visit?')) {
       try {
-        await visitService.deleteVisit(id);
+        await supabase.from('visits').delete().eq('id', id);
         loadVisits();
       } catch (error) {
         console.error('Error deleting visit:', error);
@@ -233,50 +274,54 @@ export default function VisitsManagement() {
   const columns: GridColDef[] = [
     {
       field: 'salesman_name',
-      headerName: 'Salesman',
-      width: 150,
+      headerName: t('salesman'),
+      width: 180,
       renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontWeight={500}>
-          {params.value}
-        </Typography>
+        <Box display="flex" alignItems="center" gap={1}>
+          <Typography variant="body2" fontWeight={500}>
+            {params.value}
+          </Typography>
+          <IconButton
+            size="small"
+            color="primary"
+            onClick={() => handleViewClientsByfilter(params.value)}
+            title="View Clients"
+          >
+            <PeopleIcon fontSize="small" />
+          </IconButton>
+        </Box>
       ),
     },
     {
       field: 'customer_name',
-      headerName: 'Customer',
+      headerName: t('customer'),
       width: 150,
     },
     {
-      field: 'customer_phone',
-      headerName: 'Phone',
-      width: 130,
-    },
-    {
       field: 'visit_type',
-      headerName: 'Type',
-      width: 120,
+      headerName: t('visitType'),
+      width: 140,
       renderCell: (params: GridRenderCellParams) => (
         <Chip
-          label={params.value}
+          label={params.value === 'personal' ? `🚗 ${t('personal')}` : `📞 ${t('telephone')}`}
           size="small"
-          color={
-            params.value === 'new'
-              ? 'success'
-              : params.value === 'followup'
-              ? 'info'
-              : 'warning'
-          }
-          sx={{ textTransform: 'capitalize' }}
+          color={params.value === 'personal' ? 'primary' : 'secondary'}
+          sx={{ textTransform: 'capitalize', fontWeight: 500 }}
         />
       ),
     },
     {
+      field: 'customer_phone',
+      headerName: t('phone'),
+      width: 130,
+    },
+    {
       field: 'status',
-      headerName: 'Status',
+      headerName: t('status'),
       width: 120,
       renderCell: (params: GridRenderCellParams) => (
         <Chip
-          label={params.value}
+          label={t(params.value)}
           size="small"
           color={
             params.value === 'completed'
@@ -291,7 +336,7 @@ export default function VisitsManagement() {
     },
     {
       field: 'created_at',
-      headerName: 'Date',
+      headerName: t('date'),
       width: 150,
       renderCell: (params: GridRenderCellParams) => (
         <Typography variant="body2">
@@ -301,7 +346,7 @@ export default function VisitsManagement() {
     },
     {
       field: 'location_address',
-      headerName: 'Location',
+      headerName: t('location'),
       width: 200,
       renderCell: (params: GridRenderCellParams) => (
         <Typography variant="body2" noWrap>
@@ -311,7 +356,7 @@ export default function VisitsManagement() {
     },
     {
       field: 'actions',
-      headerName: 'Actions',
+      headerName: t('actions'),
       width: 120,
       sortable: false,
       renderCell: (params: GridRenderCellParams) => (
@@ -339,7 +384,7 @@ export default function VisitsManagement() {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h5" fontWeight={600}>
-          Visits Management
+          {t('visits')} {t('dashboard')}
         </Typography>
         <Box display="flex" gap={2}>
           <Button
@@ -349,7 +394,7 @@ export default function VisitsManagement() {
             onClick={migrateLocations}
             disabled={loading || migrating || visits.length === 0}
           >
-            {migrating ? 'Migrating...' : 'Convert GPS to Addresses'}
+            {migrating ? t('loading') : t('convertGpsToAddresses')}
           </Button>
           <Button
             startIcon={<DownloadIcon />}
@@ -357,7 +402,7 @@ export default function VisitsManagement() {
             onClick={handleExportToExcel}
             disabled={loading || visits.length === 0}
           >
-            Export to Excel
+            {t('exportToExcel')}
           </Button>
           <Button
             startIcon={<RefreshIcon />}
@@ -365,7 +410,7 @@ export default function VisitsManagement() {
             onClick={loadVisits}
             disabled={loading}
           >
-            Refresh
+            {t('refresh')}
           </Button>
         </Box>
       </Box>
@@ -383,10 +428,9 @@ export default function VisitsManagement() {
               rows={visits}
               columns={columns}
               loading={loading}
-              pageSizeOptions={[10, 25, 50]}
-              initialState={{
-                pagination: { paginationModel: { pageSize: 10 } },
-              }}
+              pageSizeOptions={[25, 50, 100]}
+              paginationModel={paginationModel}
+              onPaginationModelChange={setPaginationModel}
               disableRowSelectionOnClick
               sx={{
                 border: 'none',
@@ -644,6 +688,52 @@ export default function VisitsManagement() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDetails}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Clients Dialog */}
+      <Dialog 
+        open={clientsDialogOpen} 
+        onClose={() => setClientsDialogOpen(false)} 
+        maxWidth="sm" 
+        fullWidth
+      >
+        <DialogTitle>
+          Clients Visited by {selectedSalesmanName}
+        </DialogTitle>
+        <DialogContent>
+          {selectedSalesmanClients.length === 0 ? (
+            <Typography color="text.secondary" textAlign="center" py={3}>
+              No clients found
+            </Typography>
+          ) : (
+            <List>
+              {selectedSalesmanClients.map((client, index) => (
+                <ListItem key={index} divider>
+                  <ListItemText
+                    primary={
+                      <Typography variant="body1" fontWeight={500}>
+                        {client.name}
+                      </Typography>
+                    }
+                    secondary={
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Phone: {client.phone || 'N/A'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Last Visit: {format(new Date(client.lastVisit), 'MMM dd, yyyy HH:mm')}
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setClientsDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>

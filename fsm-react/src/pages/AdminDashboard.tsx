@@ -31,25 +31,33 @@ import {
   Flag as FlagIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '../store/authStore';
+import LanguageSwitcher from '../components/LanguageSwitcher';
+import { useTranslation } from 'react-i18next';
+
+// Direct imports - no lazy loading for instant tab switching
 import VisitsManagement from '../components/admin/VisitsManagement';
 import ProductsManagement from '../components/admin/ProductsManagement';
 import SalesmenManagement from '../components/admin/SalesmenManagement';
 import CustomersManagement from '../components/admin/CustomersManagement';
 import ReportsManagement from '../components/admin/ReportsManagement';
 import TargetsManagement from '../components/admin/TargetsManagement';
-import TargetsDashboard from '../components/admin/TargetsDashboard';
+import FastDashboard from '../components/admin/FastDashboard';
 
 const drawerWidth = 260;
 
 type TabType = 'dashboard' | 'visits' | 'products' | 'salesmen' | 'customers' | 'reports' | 'targets';
 
 export default function AdminDashboard() {
+  const { t, i18n } = useTranslation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const { user, logout } = useAuthStore();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  
+  // Check if current language is RTL
+  const isRTL = i18n.language === 'ar';
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -69,13 +77,13 @@ export default function AdminDashboard() {
   };
 
   const menuItems = [
-    { id: 'dashboard' as TabType, label: 'Dashboard', icon: <DashboardIcon /> },
-    { id: 'visits' as TabType, label: 'Visits', icon: <ReceiptIcon /> },
-    { id: 'products' as TabType, label: 'Products', icon: <InventoryIcon /> },
-    { id: 'salesmen' as TabType, label: 'Salesmen', icon: <PeopleIcon /> },
-    { id: 'customers' as TabType, label: 'Customers', icon: <PersonIcon /> },
-    { id: 'targets' as TabType, label: 'Targets', icon: <FlagIcon /> },
-    { id: 'reports' as TabType, label: 'Reports', icon: <AssessmentIcon /> },
+    { id: 'dashboard' as TabType, label: t('dashboard'), icon: <DashboardIcon /> },
+    { id: 'visits' as TabType, label: t('visits'), icon: <ReceiptIcon /> },
+    { id: 'products' as TabType, label: t('products'), icon: <InventoryIcon /> },
+    { id: 'salesmen' as TabType, label: t('salesmen'), icon: <PeopleIcon /> },
+    { id: 'customers' as TabType, label: t('customers'), icon: <PersonIcon /> },
+    { id: 'targets' as TabType, label: t('targets'), icon: <FlagIcon /> },
+    { id: 'reports' as TabType, label: t('reports'), icon: <AssessmentIcon /> },
   ];
 
   const drawer = (
@@ -93,21 +101,22 @@ export default function AdminDashboard() {
         <Box
           sx={{
             background: 'white',
-            padding: '8px 12px',
+            padding: '8px 14px',
             borderRadius: 1,
             display: 'flex',
             alignItems: 'center',
           }}
         >
-          <Box
-            component="img"
-            src="/hylite-logo.svg"
-            alt="Hylite"
+          <Typography
             sx={{
-              height: 32,
-              width: 'auto',
+              fontWeight: 'bold',
+              fontSize: '24px',
+              color: '#1976D2',
+              letterSpacing: '0.5px',
             }}
-          />
+          >
+            HYL<span style={{ color: '#D32F2F' }}>i</span>TE
+          </Typography>
         </Box>
         <Box>
           <Typography variant="h6" fontWeight={700}>
@@ -160,7 +169,7 @@ export default function AdminDashboard() {
         position="fixed"
         sx={{
           width: { md: `calc(100% - ${drawerWidth}px)` },
-          ml: { md: `${drawerWidth}px` },
+          ...(isRTL ? { mr: { md: `${drawerWidth}px` } } : { ml: { md: `${drawerWidth}px` } }),
           background: 'white',
           color: 'text.primary',
         }}
@@ -179,6 +188,7 @@ export default function AdminDashboard() {
             {menuItems.find((item) => item.id === activeTab)?.label}
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <LanguageSwitcher />
             <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
               {user?.name}
             </Typography>
@@ -213,6 +223,7 @@ export default function AdminDashboard() {
       >
         <Drawer
           variant="temporary"
+          anchor={isRTL ? 'right' : 'left'}
           open={mobileOpen}
           onClose={handleDrawerToggle}
           ModalProps={{ keepMounted: true }}
@@ -225,6 +236,7 @@ export default function AdminDashboard() {
         </Drawer>
         <Drawer
           variant="permanent"
+          anchor={isRTL ? 'right' : 'left'}
           sx={{
             display: { xs: 'none', md: 'block' },
             '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
@@ -245,7 +257,7 @@ export default function AdminDashboard() {
           mt: 8,
         }}
       >
-        {activeTab === 'dashboard' && <TargetsDashboard />}
+        {activeTab === 'dashboard' && <FastDashboard />}
         {activeTab === 'visits' && <VisitsManagement />}
         {activeTab === 'products' && <ProductsManagement />}
         {activeTab === 'salesmen' && <SalesmenManagement />}

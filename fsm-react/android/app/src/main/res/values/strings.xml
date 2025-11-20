@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Hylite FSM</string>
+    <string name="title_activity_main">Hylite FSM</string>
+    <string name="package_name">com.saksolution.fsm</string>
+    <string name="custom_url_scheme">com.saksolution.fsm</string>
+</resources>

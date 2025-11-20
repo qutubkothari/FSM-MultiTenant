@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Typography,
@@ -33,10 +34,11 @@ import {
   Refresh as RefreshIcon,
   Save as SaveIcon,
 } from '@mui/icons-material';
-import { targetsService, salesmanService, productService } from '../../services/supabase';
+import { supabase } from '../../services/supabase';
 import { SalesmanTarget, ProductTarget } from '../../types';
 
 export default function TargetsManagement() {
+  const { t } = useTranslation();
   const [targets, setTargets] = useState<SalesmanTarget[]>([]);
   const [salesmen, setSalesmen] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -69,21 +71,14 @@ export default function TargetsManagement() {
     setLoading(true);
     setError('');
     try {
-      const [targetsData, salesmenData, productsData] = await Promise.all([
-        targetsService.getTargets().catch((err) => {
-          console.error('Error fetching targets:', err);
-          // Log full error details
-          console.error('Error code:', err.code);
-          console.error('Error message:', err.message);
-          console.error('Error details:', err.details);
-          throw err;
-        }),
-        salesmanService.getSalesmen(),
-        productService.getProducts(),
+      const [targetsResult, salesmenResult, productsResult] = await Promise.all([
+        supabase.from('targets').select('*'),
+        supabase.from('salesmen').select('id, name, is_admin').eq('is_admin', false),
+        supabase.from('products').select('id, name'),
       ]);
-      setTargets(targetsData);
-      setSalesmen(salesmenData.filter((s: any) => !s.is_admin));
-      setProducts(productsData);
+      setTargets(targetsResult.data || []);
+      setSalesmen(salesmenResult.data || []);
+      setProducts(productsResult.data || []);
     } catch (err: any) {
       console.error('Error loading data:', err);
       const errorMessage = err.message || 'Failed to load data';
@@ -152,9 +147,9 @@ export default function TargetsManagement() {
       };
 
       if (editingTarget) {
-        await targetsService.updateTarget(editingTarget.id, targetData);
+        await supabase.from('targets').update(targetData).eq('id', editingTarget.id);
       } else {
-        await targetsService.createTarget(targetData);
+        await supabase.from('targets').insert([targetData]);
       }
 
       await loadData();
@@ -166,9 +161,9 @@ export default function TargetsManagement() {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this target?')) {
+    if (window.confirm(t('areYouSure'))) {
       try {
-        await targetsService.deleteTarget(id);
+        await supabase.from('targets').delete().eq('id', id);
         await loadData();
       } catch (err) {
         console.error('Error deleting target:', err);
@@ -207,7 +202,7 @@ export default function TargetsManagement() {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h5" fontWeight={600}>
-          Sales Targets Management
+          {t('salesTargetsManagement')}
         </Typography>
         <Box display="flex" gap={2}>
           <Button
@@ -216,14 +211,14 @@ export default function TargetsManagement() {
             onClick={loadData}
             disabled={loading}
           >
-            Refresh
+            {t('refresh')}
           </Button>
           <Button
             startIcon={<AddIcon />}
             variant="contained"
             onClick={() => handleOpenDialog()}
           >
-            Set Target
+            {t('setTarget')}
           </Button>
         </Box>
       </Box>
@@ -254,28 +249,28 @@ export default function TargetsManagement() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell><strong>Salesman</strong></TableCell>
-                  <TableCell><strong>Period</strong></TableCell>
-                  <TableCell align="right"><strong>Visits/Month</strong></TableCell>
-                  <TableCell align="right"><strong>Visits/Day</strong></TableCell>
-                  <TableCell align="right"><strong>New Visits</strong></TableCell>
-                  <TableCell align="right"><strong>Repeat Visits</strong></TableCell>
-                  <TableCell align="right"><strong>Orders</strong></TableCell>
-                  <TableCell align="right"><strong>Order Value</strong></TableCell>
-                  <TableCell align="center"><strong>Actions</strong></TableCell>
+                  <TableCell><strong>{t('salesman')}</strong></TableCell>
+                  <TableCell><strong>{t('month')}/{t('year')}</strong></TableCell>
+                  <TableCell align="right"><strong>{t('visitsPerMonth')}</strong></TableCell>
+                  <TableCell align="right"><strong>{t('visitsPerDay')}</strong></TableCell>
+                  <TableCell align="right"><strong>{t('newVisitsPerMonth')}</strong></TableCell>
+                  <TableCell align="right"><strong>{t('repeatVisitsPerMonth')}</strong></TableCell>
+                  <TableCell align="right"><strong>{t('orders')}</strong></TableCell>
+                  <TableCell align="right"><strong>{t('orderValue')}</strong></TableCell>
+                  <TableCell align="center"><strong>{t('actions')}</strong></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {loading ? (
                   <TableRow>
                     <TableCell colSpan={9} align="center">
-                      Loading...
+                      {t('loading')}
                     </TableCell>
                   </TableRow>
                 ) : targets.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={9} align="center">
-                      No targets set. Click "Set Target" to create one.
+                      {t('noData')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -324,7 +319,7 @@ export default function TargetsManagement() {
       {/* Target Dialog */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
-          {editingTarget ? 'Edit Target' : 'Set New Target'}
+          {editingTarget ? t('editTarget') : t('setTarget')}
         </DialogTitle>
         <DialogContent>
           {error && (
@@ -336,10 +331,10 @@ export default function TargetsManagement() {
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12} sm={4}>
               <FormControl fullWidth>
-                <InputLabel>Salesman *</InputLabel>
+                <InputLabel>{t('salesman')} *</InputLabel>
                 <Select
                   value={formData.salesman_id}
-                  label="Salesman *"
+                  label={`${t('salesman')} *`}
                   onChange={(e) =>
                     setFormData({ ...formData, salesman_id: e.target.value })
                   }
@@ -356,10 +351,10 @@ export default function TargetsManagement() {
 
             <Grid item xs={12} sm={4}>
               <FormControl fullWidth>
-                <InputLabel>Month *</InputLabel>
+                <InputLabel>{t('month')} *</InputLabel>
                 <Select
                   value={formData.month}
-                  label="Month *"
+                  label={`${t('month')} *`}
                   onChange={(e) =>
                     setFormData({ ...formData, month: Number(e.target.value) })
                   }
@@ -376,7 +371,7 @@ export default function TargetsManagement() {
             <Grid item xs={12} sm={4}>
               <TextField
                 fullWidth
-                label="Year *"
+                label={`${t('year')} *`}
                 type="number"
                 value={formData.year}
                 onChange={(e) =>
@@ -387,14 +382,14 @@ export default function TargetsManagement() {
 
             <Grid item xs={12}>
               <Typography variant="subtitle2" color="primary" sx={{ mt: 2, mb: 1 }}>
-                Visit Targets
+                {t('visitsTarget')}
               </Typography>
             </Grid>
 
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Visits Per Month"
+                label={t('visitsPerMonth')}
                 type="number"
                 value={formData.visits_per_month}
                 onChange={(e) =>
@@ -406,7 +401,7 @@ export default function TargetsManagement() {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Visits Per Day"
+                label={t('visitsPerDay')}
                 type="number"
                 inputProps={{ step: 0.1 }}
                 value={formData.visits_per_day}
@@ -419,7 +414,7 @@ export default function TargetsManagement() {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="New Visits Per Month"
+                label={t('newVisitsPerMonth')}
                 type="number"
                 value={formData.new_visits_per_month}
                 onChange={(e) =>
@@ -434,7 +429,7 @@ export default function TargetsManagement() {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Repeat Visits Per Month"
+                label={t('repeatVisitsPerMonth')}
                 type="number"
                 value={formData.repeat_visits_per_month}
                 onChange={(e) =>
@@ -448,14 +443,14 @@ export default function TargetsManagement() {
 
             <Grid item xs={12}>
               <Typography variant="subtitle2" color="primary" sx={{ mt: 2, mb: 1 }}>
-                Order Targets
+                {t('ordersTarget')}
               </Typography>
             </Grid>
 
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Orders Per Month"
+                label={t('ordersPerMonth')}
                 type="number"
                 value={formData.orders_per_month}
                 onChange={(e) =>
@@ -467,7 +462,7 @@ export default function TargetsManagement() {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Order Value Per Month (₹)"
+                label={t('orderValuePerMonth')}
                 type="number"
                 value={formData.order_value_per_month}
                 onChange={(e) =>
@@ -482,14 +477,14 @@ export default function TargetsManagement() {
             <Grid item xs={12}>
               <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mt: 2, mb: 1 }}>
                 <Typography variant="subtitle2" color="primary">
-                  Product-wise Targets (Optional)
+                  {t('productTargets')}
                 </Typography>
                 <Button
                   size="small"
                   startIcon={<AddIcon />}
                   onClick={addProductTarget}
                 >
-                  Add Product
+                  {t('addProductTarget')}
                 </Button>
               </Box>
             </Grid>
@@ -498,10 +493,10 @@ export default function TargetsManagement() {
               <Grid item xs={12} key={index}>
                 <Box display="flex" gap={2} alignItems="center">
                   <FormControl sx={{ flex: 1 }}>
-                    <InputLabel>Product</InputLabel>
+                    <InputLabel>{t('product')}</InputLabel>
                     <Select
                       value={pt.product_id}
-                      label="Product"
+                      label={t('product')}
                       onChange={(e) =>
                         updateProductTarget(index, 'product_id', e.target.value)
                       }
@@ -514,7 +509,7 @@ export default function TargetsManagement() {
                     </Select>
                   </FormControl>
                   <TextField
-                    label="Target Quantity"
+                    label={t('targetQuantity')}
                     type="number"
                     value={pt.target_quantity}
                     onChange={(e) =>
@@ -534,13 +529,13 @@ export default function TargetsManagement() {
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
+          <Button onClick={handleCloseDialog}>{t('cancel')}</Button>
           <Button
             onClick={handleSave}
             variant="contained"
             startIcon={<SaveIcon />}
           >
-            Save Target
+            {t('save')}
           </Button>
         </DialogActions>
       </Dialog>

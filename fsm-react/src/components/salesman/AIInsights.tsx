@@ -22,8 +22,10 @@ import {
 import { aiService } from '../../services/ai.service';
 import { visitService } from '../../services/supabase';
 import { useAuthStore } from '../../store/authStore';
+import { useTranslation } from 'react-i18next';
 
 export default function AIInsights() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [insights, setInsights] = useState<any[]>([]);
@@ -38,8 +40,8 @@ export default function AIInsights() {
     
     setLoading(true);
     try {
-      // Get all visits for this salesman
-      const visits = await visitService.getVisits(user.id);
+      // Get recent 50 visits for this salesman for performance
+      const visits = await visitService.getVisits(undefined, user.phone, 50);
       
       // Get AI insights and recommendations
       const [insightsData, recommendationsData] = await Promise.all([
@@ -96,11 +98,11 @@ export default function AIInsights() {
       <Card sx={{ mb: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            🤖 AI Insights
+            🤖 {t('aiInsights')}
           </Typography>
           {insights.length === 0 ? (
             <Alert severity="info">
-              No insights available yet. Complete more visits to get personalized recommendations.
+              {t('noInsightsYet')}
             </Alert>
           ) : (
             <List>
@@ -114,7 +116,7 @@ export default function AIInsights() {
                       primary={
                         <Box display="flex" alignItems="center" gap={1}>
                           <Typography variant="subtitle1">
-                            {insight.title}
+                            {t(insight.titleKey || insight.title)}
                           </Typography>
                           <Chip
                             label={insight.priority}
@@ -123,7 +125,7 @@ export default function AIInsights() {
                           />
                         </Box>
                       }
-                      secondary={insight.description}
+                      secondary={String(t(insight.descriptionKey || insight.description || '', insight.descriptionParams || {}))}
                     />
                   </ListItem>
                   {index < insights.length - 1 && <Divider />}
@@ -138,11 +140,11 @@ export default function AIInsights() {
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            📍 Recommended Customers to Visit
+            📍 {t('recommendedCustomersToVisit')}
           </Typography>
           {recommendations.length === 0 ? (
             <Alert severity="success">
-              Great job! All your customers have been visited recently.
+              {t('greatJob')}
             </Alert>
           ) : (
             <List>
@@ -168,12 +170,12 @@ export default function AIInsights() {
                       secondary={
                         <>
                           <Typography variant="body2" color="text.secondary">
-                            {rec.reason}
+                            {String(t(rec.reasonKey || rec.reason || '', rec.reasonParams || {}))}
                           </Typography>
                           {rec.suggestedProducts && (
                             <Box display="flex" gap={0.5} mt={1}>
                               <Typography variant="caption" color="text.secondary">
-                                Suggested:
+                                {t('suggestedProducts')}:
                               </Typography>
                               {rec.suggestedProducts.map((product: string) => (
                                 <Chip

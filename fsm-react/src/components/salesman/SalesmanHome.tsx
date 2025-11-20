@@ -13,10 +13,12 @@ import {
   Schedule,
 } from '@mui/icons-material';
 import { useAuthStore } from '../../store/authStore';
-import { visitService } from '../../services/supabase';
+import { supabase } from '../../services/supabase';
 import AIInsights from './AIInsights';
+import { useTranslation } from 'react-i18next';
 
 export default function SalesmanHome() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [stats, setStats] = useState({
     total: 0,
@@ -26,18 +28,45 @@ export default function SalesmanHome() {
 
   useEffect(() => {
     loadStats();
+    
+    // Auto-refresh every 10 seconds for live updates
+    const refreshInterval = setInterval(() => {
+      loadStats();
+    }, 10000);
+    
+    return () => clearInterval(refreshInterval);
   }, [user]);
 
   const loadStats = async () => {
     if (!user) return;
     try {
-      const visits = await visitService.getVisits(user.id);
+      // Look up salesman by phone number
+      const { data: salesman } = await supabase
+        .from('salesmen')
+        .select('id')
+        .eq('phone', user.phone)
+        .maybeSingle();
+
+      if (!salesman) {
+        console.error('Salesman not found for phone:', user.phone);
+        return;
+      }
+
+      // Only load recent visits for faster performance
+      const { data: visits } = await supabase
+        .from('visits')
+        .select('id, created_at, status, salesman_id')
+        .eq('salesman_id', salesman.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
       const today = new Date().toISOString().split('T')[0];
-      const todayVisits = visits.filter((v: any) => v.created_at.startsWith(today));
-      const completedVisits = visits.filter((v: any) => v.status === 'completed');
+      const visitsList = visits || [];
+      const todayVisits = visitsList.filter((v: any) => v.created_at.startsWith(today));
+      const completedVisits = visitsList.filter((v: any) => v.status === 'completed');
 
       setStats({
-        total: visits.length,
+        total: visitsList.length,
         today: todayVisits.length,
         completed: completedVisits.length,
       });
@@ -70,10 +99,10 @@ export default function SalesmanHome() {
             </Avatar>
             <Box>
               <Typography variant="h6" fontWeight={600}>
-                Welcome, {user?.name}!
+                {t('welcome')}, {user?.name}!
               </Typography>
               <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                Ready to make sales today?
+                {t('readyToMakeSales')}
               </Typography>
             </Box>
           </Box>
@@ -93,7 +122,7 @@ export default function SalesmanHome() {
               <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Box>
                   <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
-                    Today's Visits
+                    {t('todaysVisits')}
                   </Typography>
                   <Typography variant="h4" fontWeight={700}>
                     {stats.today}
@@ -116,7 +145,7 @@ export default function SalesmanHome() {
               <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Box>
                   <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
-                    Completed
+                    {t('completed')}
                   </Typography>
                   <Typography variant="h4" fontWeight={700}>
                     {stats.completed}
@@ -139,7 +168,7 @@ export default function SalesmanHome() {
               <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Box>
                   <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
-                    Total Visits
+                    {t('totalVisitsCount')}
                   </Typography>
                   <Typography variant="h4" fontWeight={700}>
                     {stats.total}
@@ -156,16 +185,16 @@ export default function SalesmanHome() {
       <Card sx={{ mt: 3 }}>
         <CardContent>
           <Typography variant="h6" fontWeight={600} gutterBottom>
-            Quick Tips
+            {t('quickTips')}
           </Typography>
           <Typography variant="body2" color="text.secondary" paragraph>
-            • Use "New Visit" tab to create visits
+            • {t('useNewVisitTab')}
           </Typography>
           <Typography variant="body2" color="text.secondary" paragraph>
-            • GPS location is automatically captured
+            • {t('gpsAutoCaptured')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            • Check "History" for past visits
+            • {t('checkHistory')}
           </Typography>
         </CardContent>
       </Card>

@@ -1,6 +1,7 @@
 import { createTheme } from '@mui/material/styles';
 
 export const theme = createTheme({
+  direction: 'ltr', // Will be overridden dynamically
   palette: {
     primary: {
       main: '#1976d2',

@@ -4,9 +4,18 @@ import LoginPage from './pages/LoginPage';
 import AdminDashboard from './pages/AdminDashboard';
 import SalesmanDashboard from './pages/SalesmanDashboard';
 import { Box, CircularProgress } from '@mui/material';
+import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 function App() {
   const { user, isLoading } = useAuthStore();
+  const { i18n } = useTranslation();
+
+  // Set HTML dir attribute based on language
+  useEffect(() => {
+    document.documentElement.dir = i18n.language === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = i18n.language;
+  }, [i18n.language]);
 
   if (isLoading) {
     return (

@@ -17,48 +17,35 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
 
 // Auth service
 export const authService = {
-  async loginWithPhone(phone: string, name: string) {
-    // Check if user exists
-    const { data: existingUser, error: fetchError } = await supabase
-      .from('salesmen')
+  async loginWithPhone(phone: string, password: string) {
+    // Check if user exists in users table with password
+    const { data: user, error: fetchError } = await supabase
+      .from('users')
       .select('*')
       .eq('phone', phone)
+      .eq('password', password)
+      .eq('is_active', true)
       .single();
 
-    if (fetchError && fetchError.code !== 'PGRST116') {
+    if (fetchError) {
+      if (fetchError.code === 'PGRST116') {
+        throw new Error('Invalid phone number or password');
+      }
       throw fetchError;
     }
 
-    // If user exists, return it
-    if (existingUser) {
-      return {
-        id: existingUser.id,
-        phone: existingUser.phone,
-        name: existingUser.name,
-        role: existingUser.is_admin ? 'admin' : 'salesman',
-        email: existingUser.email,
-        created_at: existingUser.created_at,
-        is_active: existingUser.is_active,
-      };
+    if (!user) {
+      throw new Error('Invalid phone number or password');
     }
 
-    // Create new user
-    const { data: newUser, error: createError } = await supabase
-      .from('salesmen')
-      .insert([{ phone, name, is_admin: false, is_active: true }])
-      .select()
-      .single();
-
-    if (createError) throw createError;
-
     return {
-      id: newUser.id,
-      phone: newUser.phone,
-      name: newUser.name,
-      role: 'salesman' as const,
-      email: newUser.email,
-      created_at: newUser.created_at,
-      is_active: newUser.is_active,
+      id: user.id,
+      phone: user.phone,
+      name: user.name,
+      role: user.role as 'admin' | 'salesman',
+      email: user.email,
+      created_at: user.created_at,
+      is_active: user.is_active,
     };
   },
 
@@ -81,14 +68,32 @@ export const visitService = {
     return data;
   },
 
-  async getVisits(salesmanId?: string) {
+  async getVisits(salesmanId?: string, userPhone?: string, limit?: number) {
     let query = supabase
       .from('visits')
       .select('*')
       .order('created_at', { ascending: false });
 
+    // If userPhone is provided, look up the salesman_id from phone
+    if (userPhone && !salesmanId) {
+      const { data: salesman } = await supabase
+        .from('salesmen')
+        .select('id')
+        .eq('phone', userPhone)
+        .maybeSingle();
+      
+      if (salesman) {
+        salesmanId = salesman.id;
+      }
+    }
+
     if (salesmanId) {
       query = query.eq('salesman_id', salesmanId);
+    }
+
+    // Add limit if specified for performance
+    if (limit) {
+      query = query.limit(limit);
     }
 
     const { data, error } = await query;

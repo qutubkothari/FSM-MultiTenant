@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Card,
@@ -22,10 +23,11 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { salesmanService } from '../../services/supabase';
+import { supabase } from '../../services/supabase';
 import { format } from 'date-fns';
 
 export default function SalesmenManagement() {
+  const { t } = useTranslation();
   const [salesmen, setSalesmen] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -45,8 +47,8 @@ export default function SalesmenManagement() {
   const loadSalesmen = async () => {
     setLoading(true);
     try {
-      const data = await salesmanService.getSalesmen();
-      setSalesmen(data);
+      const { data } = await supabase.from('salesmen').select('*').order('created_at', { ascending: false });
+      setSalesmen(data || []);
     } catch (error) {
       console.error('Error loading salesmen:', error);
     }
@@ -80,9 +82,9 @@ export default function SalesmenManagement() {
   const handleSave = async () => {
     try {
       if (editSalesman) {
-        await salesmanService.updateSalesman(editSalesman.id, formData);
+        await supabase.from('salesmen').update(formData).eq('id', editSalesman.id);
       } else {
-        await salesmanService.createSalesman(formData);
+        await supabase.from('salesmen').insert([formData]);
       }
       setDialogOpen(false);
       loadSalesmen();
@@ -92,11 +94,23 @@ export default function SalesmenManagement() {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this salesman?')) {
+    if (window.confirm('⚠️ Are you sure you want to delete this salesman? This will also delete all their visits, targets, and related data.')) {
       try {
-        await salesmanService.deleteSalesman(id);
-        loadSalesmen();
+        // First, delete related data
+        await supabase.from('salesman_targets').delete().eq('salesman_id', id);
+        await supabase.from('visits').delete().eq('salesman_id', id);
+        
+        // Then delete the salesman
+        const { error } = await supabase.from('salesmen').delete().eq('id', id);
+        
+        if (error) {
+          alert(`Failed to delete salesman: ${error.message}`);
+          console.error('Error deleting salesman:', error);
+        } else {
+          loadSalesmen();
+        }
       } catch (error) {
+        alert('Failed to delete salesman. They may have related data.');
         console.error('Error deleting salesman:', error);
       }
     }
@@ -105,7 +119,7 @@ export default function SalesmenManagement() {
   const columns: GridColDef[] = [
     {
       field: 'name',
-      headerName: 'Name',
+      headerName: t('name'),
       width: 200,
       renderCell: (params: GridRenderCellParams) => (
         <Typography variant="body2" fontWeight={500}>
@@ -113,15 +127,15 @@ export default function SalesmenManagement() {
         </Typography>
       ),
     },
-    { field: 'phone', headerName: 'Phone', width: 150 },
-    { field: 'email', headerName: 'Email', width: 200 },
+    { field: 'phone', headerName: t('phone'), width: 150 },
+    { field: 'email', headerName: t('email'), width: 200 },
     {
       field: 'is_admin',
-      headerName: 'Role',
+      headerName: t('role'),
       width: 120,
       renderCell: (params: GridRenderCellParams) => (
         <Chip
-          label={params.value ? 'Admin' : 'Salesman'}
+          label={params.value ? t('admin') : t('salesman')}
           size="small"
           color={params.value ? 'secondary' : 'default'}
         />
@@ -129,11 +143,11 @@ export default function SalesmenManagement() {
     },
     {
       field: 'is_active',
-      headerName: 'Status',
+      headerName: t('status'),
       width: 120,
       renderCell: (params: GridRenderCellParams) => (
         <Chip
-          label={params.value ? 'Active' : 'Inactive'}
+          label={params.value ? t('active') : t('inactive')}
           size="small"
           color={params.value ? 'success' : 'error'}
         />
@@ -141,7 +155,7 @@ export default function SalesmenManagement() {
     },
     {
       field: 'created_at',
-      headerName: 'Joined',
+      headerName: t('joined'),
       width: 150,
       renderCell: (params: GridRenderCellParams) => (
         <Typography variant="body2">
@@ -151,7 +165,7 @@ export default function SalesmenManagement() {
     },
     {
       field: 'actions',
-      headerName: 'Actions',
+      headerName: t('actions'),
       width: 120,
       sortable: false,
       renderCell: (params: GridRenderCellParams) => (
@@ -171,7 +185,7 @@ export default function SalesmenManagement() {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h5" fontWeight={600}>
-          Salesmen Management
+          {t('salesmenManagement')}
         </Typography>
         <Box>
           <Button
@@ -181,10 +195,10 @@ export default function SalesmenManagement() {
             disabled={loading}
             sx={{ mr: 1 }}
           >
-            Refresh
+            {t('refresh')}
           </Button>
           <Button startIcon={<AddIcon />} variant="contained" onClick={handleAdd}>
-            Add Salesman
+            {t('addSalesman')}
           </Button>
         </Box>
       </Box>

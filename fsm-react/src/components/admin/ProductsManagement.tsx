@@ -21,9 +21,11 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { productService } from '../../services/supabase';
+import { supabase } from '../../services/supabase';
+import { useTranslation } from 'react-i18next';
 
 export default function ProductsManagement() {
+  const { t } = useTranslation();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -45,10 +47,12 @@ export default function ProductsManagement() {
   const loadProducts = async () => {
     setLoading(true);
     try {
-      const data = await productService.getProducts();
-      setProducts(data);
-    } catch (error) {
+      const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+      setProducts(data || []);
+    } catch (error: any) {
       console.error('Error loading products:', error);
+      alert(`Error loading products: ${error.message || 'Unknown error'}`);
+      setProducts([]);
     }
     setLoading(false);
   };
@@ -83,28 +87,45 @@ export default function ProductsManagement() {
 
   const handleSave = async () => {
     try {
+      // Validation
+      if (!formData.code || !formData.name || !formData.category) {
+        alert('Please fill in all required fields (Code, Name, Category)');
+        return;
+      }
+
+      const unitPrice = formData.unit_price ? parseFloat(formData.unit_price) : 0;
+      const stockQuantity = formData.stock_quantity ? parseInt(formData.stock_quantity) : 0;
+
+      if (isNaN(unitPrice) || isNaN(stockQuantity)) {
+        alert('Please enter valid numbers for price and stock quantity');
+        return;
+      }
+
       const data = {
         ...formData,
-        unit_price: parseFloat(formData.unit_price),
-        stock_quantity: parseInt(formData.stock_quantity),
+        unit_price: unitPrice,
+        stock_quantity: stockQuantity,
       };
 
       if (editProduct) {
-        await productService.updateProduct(editProduct.id, data);
+        await supabase.from('products').update(data).eq('id', editProduct.id);
+        alert('Product updated successfully!');
       } else {
-        await productService.createProduct(data);
+        await supabase.from('products').insert([data]);
+        alert('Product created successfully!');
       }
       setDialogOpen(false);
       loadProducts();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving product:', error);
+      alert(`Error saving product: ${error.message || 'Unknown error'}`);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        await productService.deleteProduct(id);
+        await supabase.from('products').delete().eq('id', id);
         loadProducts();
       } catch (error) {
         console.error('Error deleting product:', error);
@@ -113,29 +134,29 @@ export default function ProductsManagement() {
   };
 
   const columns: GridColDef[] = [
-    { field: 'code', headerName: 'Code', width: 120 },
-    { field: 'name', headerName: 'Name', width: 200 },
-    { field: 'category', headerName: 'Category', width: 150 },
+    { field: 'code', headerName: t('code'), width: 120 },
+    { field: 'name', headerName: t('name'), width: 200 },
+    { field: 'category', headerName: t('category'), width: 150 },
     {
       field: 'unit_price',
-      headerName: 'Price',
+      headerName: t('price'),
       width: 120,
       renderCell: (params: GridRenderCellParams) => `₹${params.value}`,
     },
-    { field: 'stock_quantity', headerName: 'Stock', width: 100 },
+    { field: 'stock_quantity', headerName: t('stock'), width: 100 },
     {
       field: 'is_active',
-      headerName: 'Status',
+      headerName: t('status'),
       width: 100,
       renderCell: (params: GridRenderCellParams) => (
         <Typography color={params.value ? 'success.main' : 'error.main'}>
-          {params.value ? 'Active' : 'Inactive'}
+          {params.value ? t('active') : t('inactive')}
         </Typography>
       ),
     },
     {
       field: 'actions',
-      headerName: 'Actions',
+      headerName: t('actions'),
       width: 120,
       sortable: false,
       renderCell: (params: GridRenderCellParams) => (
@@ -155,7 +176,7 @@ export default function ProductsManagement() {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h5" fontWeight={600}>
-          Products Management
+          {t('productsManagement')}
         </Typography>
         <Box>
           <Button
@@ -165,10 +186,10 @@ export default function ProductsManagement() {
             disabled={loading}
             sx={{ mr: 1 }}
           >
-            Refresh
+            {t('refresh')}
           </Button>
           <Button startIcon={<AddIcon />} variant="contained" onClick={handleAdd}>
-            Add Product
+            {t('addProduct')}
           </Button>
         </Box>
       </Box>
@@ -196,24 +217,30 @@ export default function ProductsManagement() {
         <DialogContent>
           <TextField
             fullWidth
-            label="Product Code"
+            label="Product Code*"
             value={formData.code}
             onChange={(e) => setFormData({ ...formData, code: e.target.value })}
             margin="normal"
+            required
+            inputProps={{ maxLength: 50 }}
           />
           <TextField
             fullWidth
-            label="Product Name"
+            label="Product Name*"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             margin="normal"
+            required
+            inputProps={{ maxLength: 100 }}
           />
           <TextField
             fullWidth
-            label="Category"
+            label="Category*"
             value={formData.category}
             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
             margin="normal"
+            required
+            inputProps={{ maxLength: 50 }}
           />
           <TextField
             fullWidth
@@ -223,6 +250,7 @@ export default function ProductsManagement() {
             margin="normal"
             multiline
             rows={2}
+            inputProps={{ maxLength: 500 }}
           />
           <TextField
             fullWidth
@@ -231,6 +259,7 @@ export default function ProductsManagement() {
             value={formData.unit_price}
             onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
             margin="normal"
+            inputProps={{ min: 0, step: 0.01 }}
           />
           <TextField
             fullWidth
@@ -239,6 +268,7 @@ export default function ProductsManagement() {
             value={formData.stock_quantity}
             onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
             margin="normal"
+            inputProps={{ min: 0, step: 1 }}
           />
           <FormControlLabel
             control={

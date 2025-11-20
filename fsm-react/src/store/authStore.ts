@@ -7,7 +7,7 @@ interface AuthState {
   user: User | null;
   isLoading: boolean;
   error: string | null;
-  login: (phone: string, name: string) => Promise<void>;
+  login: (phone: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: User | null) => void;
 }
@@ -19,10 +19,10 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       error: null,
 
-      login: async (phone: string, name: string) => {
+      login: async (phone: string, password: string) => {
         set({ isLoading: true, error: null });
         try {
-          const userData = await authService.loginWithPhone(phone, name);
+          const userData = await authService.loginWithPhone(phone, password);
           const user: User = {
             ...userData,
             role: userData.role as 'admin' | 'salesman',

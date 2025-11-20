@@ -15,3 +15,31 @@
 
 # Node.js dependencies:
 node_modules/
+
+# Exclude all source files - only upload dist-react
+fsm-react/src/
+fsm-react/public/
+fsm-react/node_modules/
+fsm-react/android/
+fsm-react/*.ts
+fsm-react/*.json
+fsm-react/*.config.*
+
+# Exclude root source files
+src/
+mobile-web/
+database/
+admin/
+
+# Exclude documentation and scripts
+*.md
+*.bat
+*.sh
+
+# Exclude config files
+*.json
+!app.yaml
+!app-*.yaml
+
+# Only upload built files
+!dist-react/

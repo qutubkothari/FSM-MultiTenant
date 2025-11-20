@@ -14,7 +14,8 @@ import {
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
-import { visitService } from '../../services/supabase';
+import { supabase } from '../../services/supabase';
+import { useTranslation } from 'react-i18next';
 
 interface CustomerData {
   customer_name: string;
@@ -29,8 +30,13 @@ interface CustomerData {
 }
 
 export default function CustomersManagement() {
+  const { t } = useTranslation();
   const [customers, setCustomers] = useState<CustomerData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 25, // Load only 25 at a time
+  });
 
   useEffect(() => {
     loadCustomers();
@@ -39,9 +45,24 @@ export default function CustomersManagement() {
   const loadCustomers = async () => {
     setLoading(true);
     try {
-      const visits = await visitService.getVisits();
+      // Load only last 30 days for faster performance
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
-      // Group visits by customer
+      const { data: visits } = await supabase
+        .from('visits')
+        .select('customer_name, contact_person, customer_phone, created_at, meeting_type')
+        .gte('created_at', thirtyDaysAgo.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(200); // Hard limit for speed
+      
+      if (!visits) {
+        setCustomers([]);
+        setLoading(false);
+        return;
+      }
+      
+      // Group visits by customer (optimized)
       const customerMap = new Map<string, CustomerData>();
       
       visits.forEach((visit) => {
@@ -87,12 +108,12 @@ export default function CustomersManagement() {
       });
       
       // Calculate status based on last visit
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const statusCheckDate = new Date();
+      statusCheckDate.setDate(statusCheckDate.getDate() - 30);
       
       Array.from(customerMap.values()).forEach((customer) => {
         const lastVisit = new Date(customer.last_visit_date);
-        customer.status = lastVisit < thirtyDaysAgo ? 'inactive' : 'active';
+        customer.status = lastVisit < statusCheckDate ? 'inactive' : 'active';
       });
       
       const customerList = Array.from(customerMap.values())
@@ -143,7 +164,7 @@ export default function CustomersManagement() {
   const columns: GridColDef[] = [
     {
       field: 'customer_name',
-      headerName: 'Customer Name',
+      headerName: t('customerName'),
       width: 200,
       renderCell: (params) => (
         <Typography variant="body2" fontWeight={500}>
@@ -151,11 +172,11 @@ export default function CustomersManagement() {
         </Typography>
       ),
     },
-    { field: 'contact_person', headerName: 'Contact Person', width: 180 },
-    { field: 'customer_phone', headerName: 'Phone', width: 130 },
+    { field: 'contact_person', headerName: t('contactPerson'), width: 180 },
+    { field: 'customer_phone', headerName: t('phone'), width: 130 },
     {
       field: 'total_visits',
-      headerName: 'Total Visits',
+      headerName: t('totalVisits'),
       width: 120,
       renderCell: (params) => (
         <Chip label={params.value} size="small" color="primary" />
@@ -163,7 +184,7 @@ export default function CustomersManagement() {
     },
     {
       field: 'total_orders',
-      headerName: 'Orders',
+      headerName: t('orders'),
       width: 100,
       renderCell: (params) => (
         <Chip label={params.value} size="small" color="success" />
@@ -171,7 +192,7 @@ export default function CustomersManagement() {
     },
     {
       field: 'last_visit_date',
-      headerName: 'Last Visit',
+      headerName: t('lastVisit'),
       width: 150,
       renderCell: (params) => (
         <Typography variant="body2">
@@ -181,12 +202,12 @@ export default function CustomersManagement() {
     },
     {
       field: 'last_meeting_type',
-      headerName: 'Last Meeting',
+      headerName: t('lastMeeting'),
       width: 150,
     },
     {
       field: 'status',
-      headerName: 'Status',
+      headerName: t('status'),
       width: 120,
       renderCell: (params) => (
         <Chip
@@ -203,7 +224,7 @@ export default function CustomersManagement() {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h5" fontWeight={600}>
-          Customers Management
+          {t('customersManagement')}
         </Typography>
         <Box display="flex" gap={2}>
           <Button
@@ -212,7 +233,7 @@ export default function CustomersManagement() {
             onClick={handleExport}
             disabled={loading || customers.length === 0}
           >
-            Export to Excel
+            {t('exportToExcel')}
           </Button>
           <Button
             startIcon={<RefreshIcon />}
@@ -220,7 +241,7 @@ export default function CustomersManagement() {
             onClick={loadCustomers}
             disabled={loading}
           >
-            Refresh
+            {t('refresh')}
           </Button>
         </Box>
       </Box>
@@ -232,12 +253,9 @@ export default function CustomersManagement() {
               rows={customers}
               columns={columns}
               loading={loading}
-              pageSizeOptions={[10, 25, 50]}
-              initialState={{
-                pagination: {
-                  paginationModel: { pageSize: 10 },
-                },
-              }}
+              pageSizeOptions={[25, 50, 100]}
+              paginationModel={paginationModel}
+              onPaginationModelChange={setPaginationModel}
               disableRowSelectionOnClick
               getRowId={(row) => row.customer_name}
               sx={{

@@ -23,13 +23,25 @@ import { useAuthStore } from '../store/authStore';
 import SalesmanHome from '../components/salesman/SalesmanHome';
 import NewVisitForm from '../components/salesman/NewVisitForm';
 import VisitHistory from '../components/salesman/VisitHistory';
+import LanguageSwitcher from '../components/LanguageSwitcher';
+import { useTranslation } from 'react-i18next';
 
 type TabType = 'home' | 'new-visit' | 'history';
 
 export default function SalesmanDashboard() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [homeRefreshKey, setHomeRefreshKey] = useState(0);
   const { user, logout } = useAuthStore();
+
+  const handleTabChange = (newTab: TabType) => {
+    setActiveTab(newTab);
+    // Refresh home stats when switching back to home
+    if (newTab === 'home') {
+      setHomeRefreshKey(prev => prev + 1);
+    }
+  };
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -57,26 +69,30 @@ export default function SalesmanDashboard() {
           <Box
             sx={{
               background: 'white',
-              padding: '4px 10px',
+              padding: '6px 12px',
               borderRadius: 1,
               display: 'flex',
               alignItems: 'center',
               mr: 2,
             }}
           >
-            <Box
-              component="img"
-              src="/hylite-logo.svg"
-              alt="Hylite"
+            <Typography
               sx={{
-                height: 26,
-                width: 'auto',
+                fontWeight: 'bold',
+                fontSize: '20px',
+                color: '#1976D2',
+                letterSpacing: '0.5px',
               }}
-            />
+            >
+              HYL<span style={{ color: '#D32F2F' }}>i</span>TE
+            </Typography>
           </Box>
           <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
             Hylite FSM
           </Typography>
+          <Box sx={{ mr: 2 }}>
+            <LanguageSwitcher />
+          </Box>
           <IconButton onClick={handleMenuOpen} size="large" color="inherit">
             <Avatar
               sx={{
@@ -100,10 +116,10 @@ export default function SalesmanDashboard() {
               </Box>
             </MenuItem>
             <MenuItem onClick={handleMenuClose}>
-              <AccountCircle sx={{ mr: 1 }} /> Profile
+              <AccountCircle sx={{ mr: 1 }} /> {t('profile')}
             </MenuItem>
             <MenuItem onClick={handleLogout}>
-              <LogoutIcon sx={{ mr: 1 }} /> Logout
+              <LogoutIcon sx={{ mr: 1 }} /> {t('logout')}
             </MenuItem>
           </Menu>
         </Toolbar>
@@ -120,8 +136,8 @@ export default function SalesmanDashboard() {
           overflow: 'auto',
         }}
       >
-        {activeTab === 'home' && <SalesmanHome />}
-        {activeTab === 'new-visit' && <NewVisitForm onSuccess={() => setActiveTab('history')} />}
+        {activeTab === 'home' && <SalesmanHome key={homeRefreshKey} />}
+        {activeTab === 'new-visit' && <NewVisitForm onSuccess={() => handleTabChange('history')} />}
         {activeTab === 'history' && <VisitHistory />}
       </Box>
 
@@ -132,7 +148,7 @@ export default function SalesmanDashboard() {
       >
         <BottomNavigation
           value={activeTab}
-          onChange={(_, newValue) => setActiveTab(newValue)}
+          onChange={(_, newValue) => handleTabChange(newValue)}
           sx={{
             height: 64,
             '& .Mui-selected': {
@@ -141,17 +157,17 @@ export default function SalesmanDashboard() {
           }}
         >
           <BottomNavigationAction
-            label="Home"
+            label={t('dashboard')}
             value="home"
             icon={<HomeIcon />}
           />
           <BottomNavigationAction
-            label="New Visit"
+            label={t('newVisit')}
             value="new-visit"
             icon={<AddCircleIcon sx={{ fontSize: 32 }} />}
           />
           <BottomNavigationAction
-            label="History"
+            label={t('visits')}
             value="history"
             icon={<HistoryIcon />}
           />

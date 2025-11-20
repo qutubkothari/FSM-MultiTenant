@@ -8,18 +8,38 @@ import {
   Typography,
   Alert,
   InputAdornment,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  MenuItem,
+  Link,
 } from '@mui/material';
 import {
   Phone as PhoneIcon,
   Person as PersonIcon,
+  Lock as LockIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '../store/authStore';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../components/LanguageSwitcher';
+import { supabase } from '../services/supabase';
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const [phone, setPhone] = useState('');
-  const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [registerOpen, setRegisterOpen] = useState(false);
+  const [registerData, setRegisterData] = useState({
+    phone: '',
+    name: '',
+    password: '',
+    role: 'salesman' as 'admin' | 'salesman',
+  });
+  const [registerError, setRegisterError] = useState('');
+  const [registerSuccess, setRegisterSuccess] = useState('');
   const login = useAuthStore((state) => state.login);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,22 +47,86 @@ export default function LoginPage() {
     setError('');
 
     if (!phone || phone.length < 10) {
-      setError('Please enter a valid 10-digit phone number');
+      setError(t('enterValidPhone'));
       return;
     }
 
-    if (!name || name.trim().length < 2) {
-      setError('Please enter your name');
+    if (!password || password.length < 6) {
+      setError(t('passwordMinLength'));
       return;
     }
 
     setLoading(true);
     try {
-      await login(phone, name.trim());
+      await login(phone, password);
+      // Success - will redirect via App.tsx
     } catch (err: any) {
-      setError(err.message || 'Login failed. Please try again.');
+      console.error('Login error:', err);
+      const errorMessage = err.message || t('invalidCredentials');
+      setError(errorMessage);
       setLoading(false);
+      // Keep the error visible
+      setTimeout(() => {
+        // Don't auto-clear the error
+      }, 100);
     }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRegisterError('');
+    setRegisterSuccess('');
+
+    if (!registerData.phone || registerData.phone.length < 10) {
+      setRegisterError(t('enterValidPhone'));
+      return;
+    }
+
+    if (!registerData.name || registerData.name.trim().length < 2) {
+      setRegisterError(t('enterYourName'));
+      return;
+    }
+
+    if (!registerData.password || registerData.password.length < 6) {
+      setRegisterError(t('passwordMinLength'));
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Insert into users table
+      const { error } = await supabase
+        .from('users')
+        .insert([
+          {
+            phone: registerData.phone,
+            name: registerData.name.trim(),
+            password: registerData.password,
+            role: registerData.role,
+          },
+        ])
+        .select();
+
+      if (error) {
+        if (error.message.includes('duplicate') || error.code === '23505') {
+          setRegisterError(t('phoneAlreadyRegistered'));
+        } else {
+          setRegisterError(error.message);
+        }
+        setLoading(false);
+        return;
+      }
+
+      setRegisterSuccess(t('registrationSuccessful'));
+      setTimeout(() => {
+        setRegisterOpen(false);
+        setRegisterSuccess('');
+        setRegisterData({ phone: '', name: '', password: '', role: 'salesman' });
+      }, 2000);
+    } catch (err: any) {
+      setRegisterError(err.message || t('registrationFailed'));
+    }
+    setLoading(false);
   };
 
   return (
@@ -56,6 +140,11 @@ export default function LoginPage() {
       }}
     >
       <Container maxWidth="sm">
+        {/* Language Switcher - Top Right */}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+          <LanguageSwitcher />
+        </Box>
+        
         <Paper
           elevation={24}
           sx={{
@@ -67,17 +156,17 @@ export default function LoginPage() {
         >
           {/* Logo & Title */}
           <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <Box
-              component="img"
-              src="/hylite-logo.svg"
-              alt="Hylite Logo"
+            <Typography
               sx={{
-                width: '180px',
-                height: 'auto',
-                margin: '0 auto 20px',
-                display: 'block',
+                fontSize: '3rem',
+                fontWeight: 700,
+                letterSpacing: '0.1em',
+                color: '#1976d2',
+                mb: 2,
               }}
-            />
+            >
+              HYL<span style={{ color: '#D32F2F' }}>i</span>TE
+            </Typography>
             <Typography
               variant="h4"
               gutterBottom
@@ -88,10 +177,10 @@ export default function LoginPage() {
                 WebkitTextFillColor: 'transparent',
               }}
             >
-              Hylite FSM
+              Field Sales Management
             </Typography>
             <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-              Field Sales Management System
+              {t('fieldSalesManagement')}
             </Typography>
           </Box>
 
@@ -99,11 +188,11 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit}>
             <TextField
               fullWidth
-              label="Phone Number"
+              label={t('phoneNumber')}
               variant="outlined"
               value={phone}
               onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-              placeholder="Enter 10-digit phone number"
+              placeholder={t('enterPhone')}
               sx={{ mb: 3 }}
               InputProps={{
                 startAdornment: (
@@ -117,16 +206,17 @@ export default function LoginPage() {
 
             <TextField
               fullWidth
-              label="Full Name"
+              type="password"
+              label={t('password')}
               variant="outlined"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter your full name"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={t('enterPassword')}
               sx={{ mb: 3 }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <PersonIcon color="primary" />
+                    <LockIcon color="primary" />
                   </InputAdornment>
                 ),
               }}
@@ -157,17 +247,165 @@ export default function LoginPage() {
                 },
               }}
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? t('loading') : t('login')}
             </Button>
+
+            {/* Register Link */}
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                {t('dontHaveAccount')}{' '}
+                <Link
+                  component="button"
+                  variant="body2"
+                  onClick={() => setRegisterOpen(true)}
+                  sx={{
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textDecoration: 'none',
+                    '&:hover': { textDecoration: 'underline' },
+                  }}
+                >
+                  {t('register')}
+                </Link>
+              </Typography>
+            </Box>
           </form>
 
           {/* Footer */}
           <Box sx={{ mt: 4, textAlign: 'center' }}>
             <Typography variant="caption" color="text.secondary">
-              Professional Field Sales Management
+              {t('professionalFieldSales')}
             </Typography>
           </Box>
         </Paper>
+
+        {/* Registration Dialog */}
+        <Dialog 
+          open={registerOpen} 
+          onClose={() => setRegisterOpen(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>
+            <Typography variant="h6" fontWeight={600}>
+              {t('register')}
+            </Typography>
+          </DialogTitle>
+          <form onSubmit={handleRegister}>
+            <DialogContent>
+              <TextField
+                fullWidth
+                label={t('phoneNumber')}
+                variant="outlined"
+                value={registerData.phone}
+                onChange={(e) => setRegisterData({
+                  ...registerData,
+                  phone: e.target.value.replace(/\D/g, '').slice(0, 10)
+                })}
+                placeholder={t('enterPhone')}
+                sx={{ mb: 2 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <PhoneIcon color="primary" />
+                    </InputAdornment>
+                  ),
+                }}
+                disabled={loading}
+                required
+              />
+
+              <TextField
+                fullWidth
+                label={t('name')}
+                variant="outlined"
+                value={registerData.name}
+                onChange={(e) => setRegisterData({
+                  ...registerData,
+                  name: e.target.value
+                })}
+                placeholder={t('enterName')}
+                sx={{ mb: 2 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <PersonIcon color="primary" />
+                    </InputAdornment>
+                  ),
+                }}
+                disabled={loading}
+                required
+              />
+
+              <TextField
+                fullWidth
+                type="password"
+                label={t('password')}
+                variant="outlined"
+                value={registerData.password}
+                onChange={(e) => setRegisterData({
+                  ...registerData,
+                  password: e.target.value
+                })}
+                placeholder={t('enterPassword')}
+                sx={{ mb: 2 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LockIcon color="primary" />
+                    </InputAdornment>
+                  ),
+                }}
+                disabled={loading}
+                required
+              />
+
+              <TextField
+                fullWidth
+                select
+                label={t('role')}
+                value={registerData.role}
+                onChange={(e) => setRegisterData({
+                  ...registerData,
+                  role: e.target.value as 'admin' | 'salesman'
+                })}
+                sx={{ mb: 2 }}
+                disabled={loading}
+                required
+              >
+                <MenuItem value="salesman">{t('salesman')}</MenuItem>
+                <MenuItem value="admin">{t('admin')}</MenuItem>
+              </TextField>
+
+              {registerError && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {registerError}
+                </Alert>
+              )}
+
+              {registerSuccess && (
+                <Alert severity="success" sx={{ mb: 2 }}>
+                  {registerSuccess}
+                </Alert>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button 
+                onClick={() => setRegisterOpen(false)} 
+                disabled={loading}
+              >
+                {t('cancel')}
+              </Button>
+              <Button 
+                type="submit" 
+                variant="contained"
+                disabled={loading}
+              >
+                {loading ? t('loading') : t('register')}
+              </Button>
+            </DialogActions>
+          </form>
+        </Dialog>
       </Container>
     </Box>
   );

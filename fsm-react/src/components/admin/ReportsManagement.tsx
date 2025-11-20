@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Card,
@@ -23,8 +24,8 @@ import {
 import {
   Download as DownloadIcon,
 } from '@mui/icons-material';
-import { visitService, salesmanService, productService, targetsService } from '../../services/supabase';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { supabase } from '../../services/supabase';
+import { format, startOfWeek, startOfMonth } from 'date-fns';
 import * as XLSX from 'xlsx';
 
 interface SalesmanStats {
@@ -62,6 +63,7 @@ interface ProductStats {
 }
 
 export default function ReportsManagement() {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'all'>('month');
   
@@ -88,15 +90,40 @@ export default function ReportsManagement() {
       const currentMonth = now.getMonth() + 1;
       const currentYear = now.getFullYear();
 
-      const [allVisits, allSalesmen, allProducts, monthlyTargets] = await Promise.all([
-        visitService.getVisits(),
-        salesmanService.getSalesmen(),
-        productService.getProducts(),
-        targetsService.getTargets(undefined, currentMonth, currentYear),
+      // Calculate date range - optimized for speed
+      let startDate = new Date();
+      switch (dateRange) {
+        case 'today':
+          startDate.setHours(0, 0, 0, 0);
+          break;
+        case 'week':
+          startDate = startOfWeek(now);
+          break;
+        case 'month':
+          startDate = startOfMonth(now);
+          break;
+        case 'all':
+          startDate.setDate(startDate.getDate() - 30); // Only 30 days max for speed
+          break;
+      }
+
+      // Parallel queries with minimal data
+      const [visitsResult, salesmenResult, productsResult, targetsResult] = await Promise.all([
+        supabase
+          .from('visits')
+          .select('salesman_id, salesman_name, meeting_type, customer_name, products_discussed, created_at')
+          .gte('created_at', startDate.toISOString())
+          .order('created_at', { ascending: false })
+          .limit(500), // Hard limit for speed
+        supabase.from('salesmen').select('id, name').eq('is_admin', false),
+        supabase.from('products').select('id, name'),
+        supabase.from('salesman_targets').select('*').eq('month', currentMonth).eq('year', currentYear),
       ]);
 
-      // Filter visits by date range
-      const filteredVisits = filterVisitsByDateRange(allVisits);
+      const filteredVisits = visitsResult.data || [];
+      const allSalesmen = salesmenResult.data || [];
+      const allProducts = productsResult.data || [];
+      const monthlyTargets = targetsResult.data || [];
       
       // Calculate all stats with targets
       calculateSalesmanStats(filteredVisits, allSalesmen, monthlyTargets);
@@ -107,27 +134,6 @@ export default function ReportsManagement() {
       console.error('Error loading report data:', error);
     }
     setLoading(false);
-  };
-
-  const filterVisitsByDateRange = (allVisits: any[]) => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    return allVisits.filter((visit) => {
-      const visitDate = new Date(visit.created_at);
-      
-      switch (dateRange) {
-        case 'today':
-          return visitDate >= today;
-        case 'week':
-          return visitDate >= startOfWeek(now) && visitDate <= endOfWeek(now);
-        case 'month':
-          return visitDate >= startOfMonth(now) && visitDate <= endOfMonth(now);
-        case 'all':
-        default:
-          return true;
-      }
-    });
   };
 
   const calculateSalesmanStats = (filteredVisits: any[], allSalesmen: any[], monthlyTargets: any[]) => {
@@ -385,20 +391,20 @@ export default function ReportsManagement() {
       {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h5" fontWeight={600}>
-          Sales Reports & Analytics
+          {t('reportsManagement')}
         </Typography>
         <Box display="flex" gap={2}>
           <FormControl size="small" sx={{ minWidth: 150 }}>
-            <InputLabel>Date Range</InputLabel>
+            <InputLabel>{t('dateRange')}</InputLabel>
             <Select
               value={dateRange}
-              label="Date Range"
+              label={t('dateRange')}
               onChange={(e) => setDateRange(e.target.value as any)}
             >
-              <MenuItem value="today">Today</MenuItem>
-              <MenuItem value="week">This Week</MenuItem>
-              <MenuItem value="month">This Month</MenuItem>
-              <MenuItem value="all">All Time</MenuItem>
+              <MenuItem value="today">{t('today')}</MenuItem>
+              <MenuItem value="week">{t('thisWeek')}</MenuItem>
+              <MenuItem value="month">{t('thisMonth')}</MenuItem>
+              <MenuItem value="all">{t('allTime')}</MenuItem>
             </Select>
           </FormControl>
           <Button
@@ -406,7 +412,7 @@ export default function ReportsManagement() {
             variant="contained"
             onClick={handleExportReport}
           >
-            Export Report
+            {t('exportReport')}
           </Button>
         </Box>
       </Box>
@@ -417,7 +423,7 @@ export default function ReportsManagement() {
           <Card sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
             <CardContent>
               <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                Total Visits
+                {t('totalVisits')}
               </Typography>
               <Typography variant="h4" fontWeight={700}>
                 {summaryStats.total_visits}
@@ -429,7 +435,7 @@ export default function ReportsManagement() {
           <Card sx={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', color: 'white' }}>
             <CardContent>
               <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                Orders
+                {t('orders')}
               </Typography>
               <Typography variant="h4" fontWeight={700}>
                 {summaryStats.total_orders}
@@ -441,7 +447,7 @@ export default function ReportsManagement() {
           <Card sx={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', color: 'white' }}>
             <CardContent>
               <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                Enquiries
+                {t('enquiries')}
               </Typography>
               <Typography variant="h4" fontWeight={700}>
                 {summaryStats.total_enquiries}
@@ -453,7 +459,7 @@ export default function ReportsManagement() {
           <Card sx={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', color: 'white' }}>
             <CardContent>
               <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                Follow-ups
+                {t('followups')}
               </Typography>
               <Typography variant="h4" fontWeight={700}>
                 {summaryStats.total_followups}
@@ -465,7 +471,7 @@ export default function ReportsManagement() {
           <Card sx={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', color: 'white' }}>
             <CardContent>
               <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                Avg/Day
+                {t('avgDay')}
               </Typography>
               <Typography variant="h4" fontWeight={700}>
                 {summaryStats.avg_visits_per_day}
@@ -477,7 +483,7 @@ export default function ReportsManagement() {
           <Card sx={{ background: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)', color: 'white' }}>
             <CardContent>
               <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                Hit Ratio
+                {t('hitRatio')}
               </Typography>
               <Typography variant="h4" fontWeight={700}>
                 {summaryStats.overall_hit_ratio}%
@@ -491,20 +497,20 @@ export default function ReportsManagement() {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" fontWeight={600} gutterBottom>
-            📊 Salesman Performance
+            {t('salesmanPerformance')}
           </Typography>
           <Divider sx={{ mb: 2 }} />
           <TableContainer>
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell><strong>Salesman</strong></TableCell>
-                  <TableCell align="right"><strong>Total Visits</strong></TableCell>
-                  <TableCell align="right"><strong>Daily Avg</strong></TableCell>
-                  <TableCell align="right"><strong>Orders</strong></TableCell>
-                  <TableCell align="right"><strong>Enquiries</strong></TableCell>
-                  <TableCell align="right"><strong>Follow-ups</strong></TableCell>
-                  <TableCell align="right"><strong>Hit Ratio</strong></TableCell>
+                  <TableCell><strong>{t('salesman')}</strong></TableCell>
+                  <TableCell align="right"><strong>{t('totalVisits')}</strong></TableCell>
+                  <TableCell align="right"><strong>{t('dailyAvg')}</strong></TableCell>
+                  <TableCell align="right"><strong>{t('orders')}</strong></TableCell>
+                  <TableCell align="right"><strong>{t('enquiries')}</strong></TableCell>
+                  <TableCell align="right"><strong>{t('followups')}</strong></TableCell>
+                  <TableCell align="right"><strong>{t('hitRatio')}</strong></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -541,17 +547,17 @@ export default function ReportsManagement() {
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight={600} gutterBottom>
-                👥 Most Visited Customers
+                {t('topCustomers')}
               </Typography>
               <Divider sx={{ mb: 2 }} />
               <TableContainer>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell><strong>Customer</strong></TableCell>
-                      <TableCell align="right"><strong>Visits</strong></TableCell>
-                      <TableCell align="right"><strong>Orders</strong></TableCell>
-                      <TableCell align="right"><strong>Last Visit</strong></TableCell>
+                      <TableCell><strong>{t('customer')}</strong></TableCell>
+                      <TableCell align="right"><strong>{t('visits')}</strong></TableCell>
+                      <TableCell align="right"><strong>{t('orders')}</strong></TableCell>
+                      <TableCell align="right"><strong>{t('lastVisit')}</strong></TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -581,16 +587,16 @@ export default function ReportsManagement() {
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight={600} gutterBottom>
-                🛍️ Most Discussed Products
+                {t('topProducts')}
               </Typography>
               <Divider sx={{ mb: 2 }} />
               <TableContainer>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell><strong>Product</strong></TableCell>
-                      <TableCell align="right"><strong>Discussions</strong></TableCell>
-                      <TableCell align="right"><strong>Share %</strong></TableCell>
+                      <TableCell><strong>{t('product')}</strong></TableCell>
+                      <TableCell align="right"><strong>{t('discussionCount')}</strong></TableCell>
+                      <TableCell align="right"><strong>{t('percentage')}</strong></TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
