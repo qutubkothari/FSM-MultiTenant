@@ -3,7 +3,7 @@
  * Add these functions to your existing supabase.ts file
  */
 
-import { useTenantStore, getCurrentTenantId } from '../store/tenantStore';
+import { getCurrentTenantId } from '../store/tenantStore';
 
 /**
  * Helper function to add tenant filter to Supabase queries
