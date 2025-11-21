@@ -21,7 +21,7 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { supabase } from '../../services/supabase';
+import { productService } from '../../services/supabase';
 import { useTranslation } from 'react-i18next';
 
 export default function ProductsManagement() {
@@ -47,7 +47,7 @@ export default function ProductsManagement() {
   const loadProducts = async () => {
     setLoading(true);
     try {
-      const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+      const data = await productService.getProducts();
       setProducts(data || []);
     } catch (error: any) {
       console.error('Error loading products:', error);
@@ -102,16 +102,20 @@ export default function ProductsManagement() {
       }
 
       const data = {
-        ...formData,
+        code: formData.code,
+        name: formData.name,
+        category: formData.category,
+        description: formData.description,
         unit_price: unitPrice,
         stock_quantity: stockQuantity,
+        is_active: formData.is_active,
       };
 
       if (editProduct) {
-        await supabase.from('products').update(data).eq('id', editProduct.id);
+        await productService.updateProduct(editProduct.id, data);
         alert('Product updated successfully!');
       } else {
-        await supabase.from('products').insert([data]);
+        await productService.createProduct(data);
         alert('Product created successfully!');
       }
       setDialogOpen(false);
@@ -125,10 +129,12 @@ export default function ProductsManagement() {
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        await supabase.from('products').delete().eq('id', id);
+        await productService.deleteProduct(id);
+        alert('Product deleted successfully!');
         loadProducts();
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error deleting product:', error);
+        alert(`Error deleting product: ${error.message || 'Unknown error'}`);
       }
     }
   };

@@ -44,30 +44,65 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('Login form submitted');
+    
+    // Clear previous error
     setError('');
 
     if (!phone || phone.length < 10) {
-      setError(t('enterValidPhone'));
+      const msg = t('enterValidPhone');
+      console.log('Validation error:', msg);
+      setError(msg);
+      setLoading(false);
       return;
     }
 
     if (!password || password.length < 6) {
-      setError(t('passwordMinLength'));
+      const msg = t('passwordMinLength');
+      console.log('Validation error:', msg);
+      setError(msg);
+      setLoading(false);
       return;
     }
 
+    console.log('Attempting login with phone:', phone);
     setLoading(true);
+    
     try {
       await login(phone, password);
+      console.log('Login successful');
       // Success - will redirect via App.tsx
     } catch (err: any) {
       console.error('Login error:', err);
-      const errorMessage = err.message || t('invalidCredentials');
-      setError(errorMessage);
+      const errorMessage = err?.message || t('invalidCredentials');
+      console.log('Setting error message:', errorMessage);
+      
+      // Set loading false
       setLoading(false);
-      // Keep the error visible
+      
+      // Set error state
+      setError(errorMessage);
+      console.log('Error state set to:', errorMessage);
+      
+      // Force DOM update with direct manipulation as backup
       setTimeout(() => {
-        // Don't auto-clear the error
+        const formElement = document.querySelector('form');
+        if (formElement) {
+          let errorDiv = document.getElementById('login-error-display');
+          if (!errorDiv) {
+            errorDiv = document.createElement('div');
+            errorDiv.id = 'login-error-display';
+            errorDiv.style.cssText = 'background-color: #f44336; color: white; padding: 16px; margin: 16px 0; border-radius: 4px; font-weight: bold; text-align: center;';
+            const submitButton = formElement.querySelector('button[type="submit"]');
+            if (submitButton) {
+              formElement.insertBefore(errorDiv, submitButton);
+            }
+          }
+          errorDiv.textContent = '⚠️ ' + errorMessage;
+          errorDiv.style.display = 'block';
+        }
       }, 100);
     }
   };
@@ -224,9 +259,34 @@ export default function LoginPage() {
             />
 
             {error && (
-              <Alert severity="error" sx={{ mb: 3 }}>
-                {error}
-              </Alert>
+              <>
+                <Alert 
+                  severity="error" 
+                  sx={{ 
+                    mb: 3,
+                    display: 'flex',
+                    alignItems: 'center',
+                    fontWeight: 600,
+                    fontSize: '0.95rem'
+                  }}
+                >
+                  {error}
+                </Alert>
+                <Box
+                  sx={{
+                    mb: 3,
+                    p: 2,
+                    backgroundColor: '#ffebee',
+                    border: '2px solid #f44336',
+                    borderRadius: 1,
+                    color: '#c62828',
+                    fontWeight: 600,
+                    textAlign: 'center'
+                  }}
+                >
+                  ⚠️ {error}
+                </Box>
+              </>
             )}
 
             <Button
@@ -256,8 +316,13 @@ export default function LoginPage() {
                 {t('dontHaveAccount')}{' '}
                 <Link
                   component="button"
+                  type="button"
                   variant="body2"
-                  onClick={() => setRegisterOpen(true)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setRegisterOpen(true);
+                  }}
                   sx={{
                     fontWeight: 600,
                     cursor: 'pointer',

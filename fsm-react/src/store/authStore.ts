@@ -20,16 +20,17 @@ export const useAuthStore = create<AuthState>()(
       error: null,
 
       login: async (phone: string, password: string) => {
-        set({ isLoading: true, error: null });
+        set({ isLoading: true, error: null, user: null });
         try {
           const userData = await authService.loginWithPhone(phone, password);
           const user: User = {
             ...userData,
             role: userData.role as 'admin' | 'salesman',
           };
-          set({ user, isLoading: false });
+          set({ user, isLoading: false, error: null });
         } catch (error: any) {
-          set({ error: error.message, isLoading: false });
+          const errorMessage = error?.message || 'Login failed';
+          set({ error: errorMessage, isLoading: false, user: null });
           throw error;
         }
       },
