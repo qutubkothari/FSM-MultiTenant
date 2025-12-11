@@ -141,10 +141,18 @@ class SyncManager {
       // Sync visits one by one with retry logic
       for (const visit of pendingVisits) {
         try {
+          console.log(`🔄 Syncing visit ${visit.id}:`, {
+            customer: visit.visitData.customer_name,
+            salesman_id: visit.visitData.salesman_id,
+            phone: visit.visitData.user_phone,
+            hasImage: !!visit.visitData.imageFile
+          });
           await this.syncSingleVisit(visit);
+          console.log(`✅ Successfully synced visit ${visit.id}`);
           successCount++;
         } catch (error) {
           console.error(`❌ Failed to sync visit ${visit.id}:`, error);
+          console.error('Visit data:', visit.visitData);
           failedCount++;
           
           // Update status with error
@@ -211,9 +219,10 @@ class SyncManager {
 
     // Upload image if exists
     let imageUrl = null;
-    if (visitData.imageFile) {
+    if (visitData.imageBlob) {
       try {
-        const imageBlob = await fetch(visitData.imageFile).then(r => r.blob());
+        console.log('📤 Uploading image from blob...');
+        const imageBlob = visitData.imageBlob;
         const fileName = `${tenantId}/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.jpg`;
         
         const { error: uploadError } = await supabase.storage
@@ -223,13 +232,17 @@ class SyncManager {
             cacheControl: '3600',
           });
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('Image upload error:', uploadError);
+          throw uploadError;
+        }
 
         const { data: { publicUrl } } = supabase.storage
           .from('visit-images')
           .getPublicUrl(fileName);
 
         imageUrl = publicUrl;
+        console.log('✅ Image uploaded:', imageUrl);
       } catch (error) {
         console.error('Failed to upload image:', error);
         // Continue without image rather than failing the entire visit

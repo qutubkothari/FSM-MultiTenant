@@ -549,10 +549,21 @@ export default function NewVisitForm({ onSuccess }: Props) {
         // OFFLINE MODE: Save to IndexedDB
         console.log('📡 Offline - saving visit to local storage');
         
-        // Convert image to blob URL for offline storage
-        let imageFile = null;
+        // Convert base64 data URL to Blob for IndexedDB storage
+        let imageBlob = null;
         if (formData.visit_image) {
-          imageFile = formData.visit_image;
+          try {
+            const base64Data = formData.visit_image.split(',')[1];
+            const byteCharacters = atob(base64Data);
+            const byteArrays = [];
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteArrays.push(byteCharacters.charCodeAt(i));
+            }
+            imageBlob = new Blob([new Uint8Array(byteArrays)], { type: 'image/jpeg' });
+            console.log('📷 Image converted to blob for offline storage, size:', imageBlob.size);
+          } catch (error) {
+            console.error('Failed to convert image:', error);
+          }
         }
 
         // Auto-translate customer name, contact person, and remarks
@@ -585,10 +596,17 @@ export default function NewVisitForm({ onSuccess }: Props) {
           location_lng: formData.location_lng,
           location_address: formData.location_address,
           check_in_time: new Date().toISOString(),
-          imageFile: imageFile, // Store blob URL
+          imageBlob: imageBlob, // Store as Blob for IndexedDB
           user_phone: user?.phone, // For salesman lookup during sync
           user_name: user?.name,
         };
+
+        console.log('💾 Saving offline visit:', {
+          customer: offlineVisitData.customer_name,
+          hasImage: !!imageBlob,
+          imageSize: imageBlob?.size,
+          phone: user?.phone
+        });
 
         await offlineStorage.saveVisitOffline(offlineVisitData);
         
