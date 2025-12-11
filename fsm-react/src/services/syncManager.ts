@@ -221,34 +221,21 @@ class SyncManager {
     const salesmanId = salesman.id;
     console.log(`✅ Found salesman ID: ${salesmanId} for phone: ${visitData.user_phone}`);
 
-    // Upload image if exists
-    let imageUrl = null;
+    // Convert blob to base64 data URL (same format as online saves)
+    let imageDataUrl = null;
     if (visitData.imageBlob) {
       try {
-        console.log('📤 Uploading image from blob...');
+        console.log('📷 Converting image blob to base64...');
         const imageBlob = visitData.imageBlob;
-        const fileName = `${tenantId}/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.jpg`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('visit-images')
-          .upload(fileName, imageBlob, {
-            contentType: 'image/jpeg',
-            cacheControl: '3600',
-          });
-
-        if (uploadError) {
-          console.error('Image upload error:', uploadError);
-          throw uploadError;
-        }
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('visit-images')
-          .getPublicUrl(fileName);
-
-        imageUrl = publicUrl;
-        console.log('✅ Image uploaded:', imageUrl);
+        imageDataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(imageBlob);
+        });
+        console.log('✅ Image converted to base64, size:', imageDataUrl.length);
       } catch (error) {
-        console.error('Failed to upload image:', error);
+        console.error('Failed to convert image to base64:', error);
         // Continue without image rather than failing the entire visit
       }
     }
@@ -315,7 +302,7 @@ class SyncManager {
         location_lng: visitData.location_lng,
         time_in: visitData.check_in_time || new Date().toISOString(),
         time_out: null,
-        visit_image: imageUrl,
+        visit_image: imageDataUrl,
         order_value: visitData.order_value || 0,
         plant: visitData.plant || [],
         tenant_id: tenantId,
