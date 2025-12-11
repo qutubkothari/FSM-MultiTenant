@@ -6,13 +6,6 @@ import App from './App';
 import { theme } from './theme';
 import './i18n'; // Initialize i18n
 
-// Unregister old service workers to force fresh cache
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then((registrations) => {
-    registrations.forEach(reg => reg.unregister());
-  });
-}
-
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
