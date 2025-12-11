@@ -1,0 +1,9 @@
+<svg width="150" height="60" viewBox="0 0 150 60" xmlns="http://www.w3.org/2000/svg">
+  <!-- HYLITE text -->
+  <text x="10" y="38" font-family="Arial, sans-serif" font-weight="bold" font-size="32" fill="#1976D2">HYL</text>
+  <text x="78" y="38" font-family="Arial, sans-serif" font-weight="bold" font-size="32" fill="#D32F2F">i</text>
+  <text x="88" y="38" font-family="Arial, sans-serif" font-weight="bold" font-size="32" fill="#1976D2">TE</text>
+  
+  <!-- Red underline -->
+  <line x1="10" y1="48" x2="140" y2="48" stroke="#D32F2F" stroke-width="3"/>
+</svg>

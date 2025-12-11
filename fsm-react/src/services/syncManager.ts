@@ -1,0 +1,307 @@
+/**
+ * Offline Sync Manager
+ * Handles automatic syncing of offline visits when connection is restored
+ */
+
+import { offlineStorage, OfflineVisit } from './offlineStorage';
+import { supabase } from './supabase';
+import { useTenantStore } from '../store/tenantStore';
+
+class SyncManager {
+  private isSyncing = false;
+  private syncInterval: NodeJS.Timeout | null = null;
+  private onlineListener: (() => void) | null = null;
+  private offlineListener: (() => void) | null = null;
+  private syncCompleteCallbacks: Array<(result: { success: number; failed: number }) => void> = [];
+
+  /**
+   * Register callback for sync completion
+   */
+  onSyncComplete(callback: (result: { success: number; failed: number }) => void) {
+    this.syncCompleteCallbacks.push(callback);
+    return () => {
+      this.syncCompleteCallbacks = this.syncCompleteCallbacks.filter(cb => cb !== callback);
+    };
+  }
+
+  /**
+   * Trigger sync complete callbacks
+   */
+  private triggerSyncComplete(result: { success: number; failed: number }) {
+    this.syncCompleteCallbacks.forEach(callback => {
+      try {
+        callback(result);
+      } catch (error) {
+        console.error('Error in sync complete callback:', error);
+      }
+    });
+  }
+
+  /**
+   * Initialize sync manager
+   */
+  async init() {
+    console.log('🔄 Initializing Sync Manager...');
+    
+    // Initialize offline storage
+    await offlineStorage.init();
+
+    // Start periodic sync check
+    this.startPeriodicSync();
+
+    // Listen for online/offline events
+    this.setupNetworkListeners();
+
+    // Check if there are pending visits on startup
+    const pendingCount = await offlineStorage.getPendingCount();
+    if (pendingCount > 0) {
+      console.log(`📤 Found ${pendingCount} pending visits on startup`);
+      if (navigator.onLine) {
+        this.syncPendingVisits();
+      }
+    }
+  }
+
+  /**
+   * Setup network status listeners
+   */
+  private setupNetworkListeners() {
+    this.onlineListener = () => {
+      console.log('🌐 Connection restored - starting sync...');
+      this.syncPendingVisits();
+    };
+
+    this.offlineListener = () => {
+      console.log('📡 Connection lost - offline mode activated');
+    };
+
+    window.addEventListener('online', this.onlineListener);
+    window.addEventListener('offline', this.offlineListener);
+  }
+
+  /**
+   * Start periodic sync (every 30 seconds)
+   */
+  private startPeriodicSync() {
+    this.syncInterval = setInterval(() => {
+      if (navigator.onLine && !this.isSyncing) {
+        this.syncPendingVisits();
+      }
+    }, 30000); // Check every 30 seconds
+  }
+
+  /**
+   * Stop sync manager
+   */
+  stop() {
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval);
+      this.syncInterval = null;
+    }
+
+    if (this.onlineListener) {
+      window.removeEventListener('online', this.onlineListener);
+    }
+
+    if (this.offlineListener) {
+      window.removeEventListener('offline', this.offlineListener);
+    }
+
+    console.log('⏹️ Sync Manager stopped');
+  }
+
+  /**
+   * Sync all pending visits
+   */
+  async syncPendingVisits(): Promise<{ success: number; failed: number }> {
+    if (this.isSyncing) {
+      console.log('⏳ Sync already in progress, skipping...');
+      return { success: 0, failed: 0 };
+    }
+
+    if (!navigator.onLine) {
+      console.log('📡 No internet connection, skipping sync');
+      return { success: 0, failed: 0 };
+    }
+
+    this.isSyncing = true;
+    let successCount = 0;
+    let failedCount = 0;
+
+    try {
+      const pendingVisits = await offlineStorage.getPendingVisits();
+      
+      if (pendingVisits.length === 0) {
+        console.log('✅ No pending visits to sync');
+        return { success: 0, failed: 0 };
+      }
+
+      console.log(`🔄 Syncing ${pendingVisits.length} pending visits...`);
+
+      // Sync visits one by one with retry logic
+      for (const visit of pendingVisits) {
+        try {
+          await this.syncSingleVisit(visit);
+          successCount++;
+        } catch (error) {
+          console.error(`❌ Failed to sync visit ${visit.id}:`, error);
+          failedCount++;
+          
+          // Update status with error
+          await offlineStorage.updateVisitStatus(
+            visit.id,
+            'failed',
+            error instanceof Error ? error.message : 'Unknown error'
+          );
+
+          // If too many retries, mark as permanently failed
+          if (visit.retryCount >= 5) {
+            console.error(`💀 Visit ${visit.id} failed after 5 retries, marking as permanently failed`);
+          }
+        }
+
+        // Small delay between syncs to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      console.log(`✅ Sync complete: ${successCount} success, ${failedCount} failed`);
+      
+      // Trigger callbacks to refresh UI
+      if (successCount > 0) {
+        this.triggerSyncComplete({ success: successCount, failed: failedCount });
+      }
+    } catch (error) {
+      console.error('❌ Sync error:', error);
+    } finally {
+      this.isSyncing = false;
+    }
+
+    return { success: successCount, failed: failedCount };
+  }
+
+  /**
+   * Sync a single visit to Supabase
+   */
+  private async syncSingleVisit(offlineVisit: OfflineVisit): Promise<void> {
+    // Mark as syncing
+    await offlineStorage.updateVisitStatus(offlineVisit.id, 'syncing');
+
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) {
+      throw new Error('No tenant ID available');
+    }
+
+    const { visitData } = offlineVisit;
+
+    // Get salesman ID from phone
+    let salesmanId = visitData.salesman_id;
+    if (!salesmanId && visitData.user_phone) {
+      const { data: salesman } = await supabase
+        .from('salesmen')
+        .select('id')
+        .eq('phone', visitData.user_phone)
+        .maybeSingle();
+      
+      if (salesman) {
+        salesmanId = salesman.id;
+      } else {
+        throw new Error('Salesman not found in database');
+      }
+    }
+
+    // Upload image if exists
+    let imageUrl = null;
+    if (visitData.imageFile) {
+      try {
+        const imageBlob = await fetch(visitData.imageFile).then(r => r.blob());
+        const fileName = `${tenantId}/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.jpg`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('visit-images')
+          .upload(fileName, imageBlob, {
+            contentType: 'image/jpeg',
+            cacheControl: '3600',
+          });
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('visit-images')
+          .getPublicUrl(fileName);
+
+        imageUrl = publicUrl;
+      } catch (error) {
+        console.error('Failed to upload image:', error);
+        // Continue without image rather than failing the entire visit
+      }
+    }
+
+    // Insert visit into database with proper column names
+    const { data, error } = await supabase
+      .from('visits')
+      .insert({
+        salesman_id: salesmanId,
+        customer_name: visitData.customer_name,
+        customer_name_ar: visitData.customer_name_ar,
+        contact_person: visitData.contact_person,
+        contact_person_ar: visitData.contact_person_ar,
+        visit_type: visitData.visit_type,
+        meeting_type: visitData.meeting_type,
+        products_discussed: visitData.products_discussed || [],
+        next_action: visitData.next_action || null,
+        next_action_date: visitData.next_action_date,
+        potential: visitData.potential || 'Medium',
+        competitor_name: visitData.competitor_name || null,
+        can_be_switched: visitData.can_be_switched || null,
+        remarks: visitData.remarks,
+        remarks_ar: visitData.remarks_ar,
+        location_lat: visitData.location_lat,
+        location_lng: visitData.location_lng,
+        time_in: visitData.check_in_time || new Date().toISOString(),
+        time_out: null,
+        visit_image: imageUrl,
+        order_value: visitData.order_value || 0,
+        plant: visitData.plant || [],
+        tenant_id: tenantId,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Database insert error:', error);
+      throw error;
+    }
+
+    console.log(`✅ Successfully synced visit ${offlineVisit.id} -> ${data.id}`);
+
+    // Mark as synced and delete from offline storage
+    await offlineStorage.updateVisitStatus(offlineVisit.id, 'synced');
+    await offlineStorage.deleteVisit(offlineVisit.id);
+  }
+
+  /**
+   * Force sync now (called manually by user)
+   */
+  async forceSyncNow(): Promise<{ success: number; failed: number }> {
+    console.log('🔄 Force sync triggered by user');
+    return await this.syncPendingVisits();
+  }
+
+  /**
+   * Get sync status
+   */
+  async getSyncStatus(): Promise<{
+    pendingCount: number;
+    isSyncing: boolean;
+    isOnline: boolean;
+  }> {
+    const pendingCount = await offlineStorage.getPendingCount();
+    return {
+      pendingCount,
+      isSyncing: this.isSyncing,
+      isOnline: navigator.onLine,
+    };
+  }
+}
+
+export const syncManager = new SyncManager();

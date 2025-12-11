@@ -2,7 +2,9 @@
 setlocal enabledelayedexpansion
 
 echo ========================================
-echo FSM App - Safe Deployment Script
+echo FSM PRODUCTION DEPLOYMENT
+echo Target: sak-fsm (LOCKED)
+echo URL: https://fsm.saksolution.com
 echo ========================================
 echo.
 
@@ -47,19 +49,25 @@ if %errorlevel% neq 0 (
 )
 echo.
 
-REM Step 4: Ask user to confirm or set project
-echo [STEP 4/7] Project Selection
-echo %YELLOW%DOUBLE CHECK: Copy the exact FSM project ID from above%RESET%
-set /p "FSM_PROJECT=Enter the FSM project ID to deploy to (or type cancel to abort): "
-if /i "!FSM_PROJECT!"=="cancel" (
+REM Step 4: LOCKED TO PRODUCTION PROJECT
+echo [STEP 4/7] Production Project Selection
+echo.
+echo %GREEN%========================================%RESET%
+echo %GREEN%   PRODUCTION DEPLOYMENT - LOCKED      %RESET%
+echo %GREEN%   Target: sak-fsm                     %RESET%
+echo %GREEN%========================================%RESET%
+echo.
+set "FSM_PROJECT=sak-fsm"
+echo This script is LOCKED to deploy to: %YELLOW%!FSM_PROJECT!%RESET%
+echo.
+set /p "CONTINUE=Continue deploying to sak-fsm (production)? (type YES to confirm): "
+if /i not "!CONTINUE!"=="YES" (
     echo %YELLOW%Deployment cancelled%RESET%
+    if not "!ORIGINAL_PROJECT!"=="NONE" (
+        gcloud config set project !ORIGINAL_PROJECT! >nul 2>&1
+    )
     pause
     exit /b 0
-)
-if "!FSM_PROJECT!"=="" (
-    echo %RED%ERROR: Project ID cannot be empty%RESET%
-    pause
-    exit /b 1
 )
 echo.
 

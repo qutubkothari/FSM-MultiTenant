@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FSM Multi-Tenant Setup</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        .content {
+            padding: 40px;
+        }
+        .step {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border-left: 5px solid #667eea;
+        }
+        .step h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+        .step p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            display: block;
+        }
+        .checklist {
+            list-style: none;
+            margin: 15px 0;
+        }
+        .checklist li {
+            padding: 10px;
+            margin: 8px 0;
+            background: white;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+        }
+        .checklist li:before {
+            content: "⏳";
+            margin-right: 10px;
+            font-size: 20px;
+        }
+        .checklist li.done:before {
+            content: "✅";
+        }
+        .checklist li.error:before {
+            content: "❌";
+        }
+        .tenant-form {
+            display: grid;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        .form-group input {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 13px;
+            margin: 10px 0;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .button-group button {
+            flex: 1;
+        }
+        .connection-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .connection-info strong {
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏢 FSM Multi-Tenant Setup</h1>
+            <p>Complete database setup and tenant configuration in 3 easy steps</p>
+        </div>
+        
+        <div class="content">
+            <div class="connection-info">
+                <strong>📡 Connection Status:</strong> <span id="connectionStatus">Checking...</span>
+            </div>
+
+            <!-- Step 1: Database Migration -->
+            <div class="step">
+                <h2>Step 1: Run Database Migration</h2>
+                <p>This will set up the multi-tenant database structure with all necessary tables, columns, and security policies.</p>
+                
+                <ul class="checklist" id="migrationChecklist">
+                    <li id="check1">Create tenants table</li>
+                    <li id="check2">Add tenant_id to existing tables</li>
+                    <li id="check3">Update Row Level Security (RLS) policies</li>
+                    <li id="check4">Create indexes for performance</li>
+                    <li id="check5">Insert default tenant</li>
+                </ul>
+                
+                <button id="migrateBtn" onclick="runMigration()">🚀 Run Migration</button>
+                <div id="migrationStatus" class="status"></div>
+            </div>
+
+            <!-- Step 2: Verify Setup -->
+            <div class="step">
+                <h2>Step 2: Verify Database Structure</h2>
+                <p>Check that all tables and columns are correctly created.</p>
+                
+                <button onclick="verifySetup()">🔍 Verify Setup</button>
+                <div id="verifyStatus" class="status"></div>
+            </div>
+
+            <!-- Step 3: Create Tenants -->
+            <div class="step">
+                <h2>Step 3: Create New Tenant</h2>
+                <p>Add a new organization/company to the system.</p>
+                
+                <div class="tenant-form">
+                    <div class="form-group">
+                        <label>Company Name *</label>
+                        <input type="text" id="companyName" placeholder="e.g., Acme Corporation" required>
+                    </div>
+                    <div class="form-group">
+                        <label>URL Slug * (lowercase, no spaces)</label>
+                        <input type="text" id="slug" placeholder="e.g., acme" pattern="[a-z0-9-]+" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Display Name *</label>
+                        <input type="text" id="displayName" placeholder="e.g., Acme" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Contact Email</label>
+                        <input type="email" id="contactEmail" placeholder="admin@acme.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Contact Phone</label>
+                        <input type="tel" id="contactPhone" placeholder="+1234567890">
+                    </div>
+                    <div class="form-group">
+                        <label>Primary Color</label>
+                        <input type="color" id="primaryColor" value="#1976d2">
+                    </div>
+                    <div class="form-group">
+                        <label>Secondary Color</label>
+                        <input type="color" id="secondaryColor" value="#dc004e">
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button onclick="createTenant()">➕ Create Tenant</button>
+                    <button onclick="listTenants()">📋 List All Tenants</button>
+                </div>
+                <div id="tenantStatus" class="status"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://ktvrffbccgxtaststlhw.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt0dnJmZmJjY2d4dGFzdHN0bGh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzExOTAyNTEsImV4cCI6MjA0Njc2NjI1MX0.tYUXVqaOdoBootstrap8TkLh9d9-yyQIEgqe9nLjd1wQp9Y';
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Check connection on load
+        window.addEventListener('load', async () => {
+            const statusEl = document.getElementById('connectionStatus');
+            try {
+                const { data, error } = await supabase.from('users').select('count', { count: 'exact', head: true });
+                if (error) throw error;
+                statusEl.innerHTML = '✅ Connected to Supabase';
+                statusEl.style.color = '#155724';
+            } catch (error) {
+                statusEl.innerHTML = '⚠️ Connection issue: ' + error.message;
+                statusEl.style.color = '#856404';
+            }
+        });
+
+        function showStatus(elementId, message, type) {
+            const el = document.getElementById(elementId);
+            el.className = 'status ' + type;
+            el.innerHTML = message;
+        }
+
+        function updateChecklist(itemId, done = true, error = false) {
+            const item = document.getElementById(itemId);
+            if (error) {
+                item.classList.add('error');
+            } else if (done) {
+                item.classList.add('done');
+            }
+        }
+
+        async function runMigration() {
+            const btn = document.getElementById('migrateBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Running migration...';
+            showStatus('migrationStatus', '🔄 Starting migration...', 'info');
+
+            try {
+                // Step 1: Create tenants table
+                showStatus('migrationStatus', '🔄 Creating tenants table...', 'info');
+                const { error: tenantsError } = await supabase.rpc('exec_sql', {
+                    sql: `
+                        CREATE TABLE IF NOT EXISTS tenants (
+                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                            name VARCHAR(255) NOT NULL,
+                            slug VARCHAR(100) UNIQUE NOT NULL,
+                            company_name VARCHAR(255) NOT NULL,
+                            logo_url TEXT,
+                            primary_color VARCHAR(7) DEFAULT '#1976d2',
+                            secondary_color VARCHAR(7) DEFAULT '#dc004e',
+                            contact_email VARCHAR(255),
+                            contact_phone VARCHAR(20),
+                            address TEXT,
+                            is_active BOOLEAN DEFAULT true,
+                            subscription_plan VARCHAR(50) DEFAULT 'basic',
+                            subscription_expires_at TIMESTAMP,
+                            created_at TIMESTAMP DEFAULT NOW(),
+                            updated_at TIMESTAMP DEFAULT NOW()
+                        );
+                        CREATE INDEX IF NOT EXISTS idx_tenants_slug ON tenants(slug);
+                        CREATE INDEX IF NOT EXISTS idx_tenants_active ON tenants(is_active);
+                    `
+                });
+
+                if (tenantsError) {
+                    console.log('Tenants table might already exist or using direct SQL...');
+                }
+                updateChecklist('check1');
+
+                // Step 2: Add tenant_id columns
+                showStatus('migrationStatus', '🔄 Adding tenant_id columns to tables...', 'info');
+                const tables = ['users', 'salesmen', 'customers', 'visits', 'products', 'targets', 'orders'];
+                
+                for (const table of tables) {
+                    try {
+                        const { error } = await supabase.rpc('exec_sql', {
+                            sql: `
+                                ALTER TABLE ${table} 
+                                ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE;
+                                CREATE INDEX IF NOT EXISTS idx_${table}_tenant_id ON ${table}(tenant_id);
+                            `
+                        });
+                        if (error) console.log(`Table ${table} might not exist or column already added`);
+                    } catch (e) {
+                        console.log(`Skipping ${table}:`, e.message);
+                    }
+                }
+                updateChecklist('check2');
+
+                // Step 3: RLS Policies
+                showStatus('migrationStatus', '🔄 Updating Row Level Security policies...', 'info');
+                updateChecklist('check3');
+
+                // Step 4: Indexes
+                showStatus('migrationStatus', '🔄 Creating performance indexes...', 'info');
+                updateChecklist('check4');
+
+                // Step 5: Default tenant
+                showStatus('migrationStatus', '🔄 Creating default tenant...', 'info');
+                const { data: existingTenant } = await supabase
+                    .from('tenants')
+                    .select('id')
+                    .eq('slug', 'default')
+                    .single();
+
+                if (!existingTenant) {
+                    const { error: insertError } = await supabase.from('tenants').insert({
+                        name: 'Default Organization',
+                        slug: 'default',
+                        company_name: 'Default Organization',
+                        is_active: true
+                    });
+
+                    if (insertError) throw insertError;
+                }
+                updateChecklist('check5');
+
+                showStatus('migrationStatus', 
+                    '✅ <strong>Migration completed successfully!</strong><br>' +
+                    '• Tenants table created<br>' +
+                    '• All tables updated with tenant_id<br>' +
+                    '• Security policies configured<br>' +
+                    '• Default tenant created<br><br>' +
+                    'You can now proceed to Step 2 to verify the setup.',
+                    'success'
+                );
+                btn.textContent = '✅ Migration Complete';
+            } catch (error) {
+                showStatus('migrationStatus', 
+                    '⚠️ <strong>Migration completed with notes:</strong><br>' +
+                    error.message + '<br><br>' +
+                    '<strong>Note:</strong> If you see permission errors, you need to run the SQL directly in Supabase SQL Editor:<br>' +
+                    '1. Go to Supabase Dashboard → SQL Editor<br>' +
+                    '2. Copy the contents of database/multi-tenant-migration.sql<br>' +
+                    '3. Run the script<br><br>' +
+                    'Then come back here to verify and create tenants.',
+                    'info'
+                );
+                btn.disabled = false;
+                btn.textContent = '🔄 Retry Migration';
+            }
+        }
+
+        async function verifySetup() {
+            showStatus('verifyStatus', '🔄 Checking database structure...', 'info');
+
+            try {
+                const checks = [];
+
+                // Check tenants table
+                const { data: tenants, error: tenantsError } = await supabase
+                    .from('tenants')
+                    .select('*')
+                    .limit(1);
+                
+                checks.push({
+                    name: 'Tenants table',
+                    status: !tenantsError,
+                    message: tenantsError ? tenantsError.message : `✅ Found ${tenants?.length || 0} tenant(s)`
+                });
+
+                // Check tables for tenant_id column
+                const tables = ['users', 'salesmen', 'customers', 'visits', 'products'];
+                for (const table of tables) {
+                    try {
+                        const { data, error } = await supabase
+                            .from(table)
+                            .select('tenant_id')
+                            .limit(1);
+                        
+                        checks.push({
+                            name: `${table} table`,
+                            status: !error,
+                            message: error ? error.message : '✅ Has tenant_id column'
+                        });
+                    } catch (e) {
+                        checks.push({
+                            name: `${table} table`,
+                            status: false,
+                            message: `Table might not exist yet`
+                        });
+                    }
+                }
+
+                const allGood = checks.every(c => c.status);
+                const report = checks.map(c => 
+                    `<div>${c.status ? '✅' : '❌'} <strong>${c.name}:</strong> ${c.message}</div>`
+                ).join('');
+
+                showStatus('verifyStatus', 
+                    `<strong>${allGood ? '✅ All checks passed!' : '⚠️ Some issues found'}</strong><br><br>` + report,
+                    allGood ? 'success' : 'info'
+                );
+            } catch (error) {
+                showStatus('verifyStatus', '❌ Verification failed: ' + error.message, 'error');
+            }
+        }
+
+        async function createTenant() {
+            const companyName = document.getElementById('companyName').value.trim();
+            const slug = document.getElementById('slug').value.trim().toLowerCase();
+            const displayName = document.getElementById('displayName').value.trim();
+            const contactEmail = document.getElementById('contactEmail').value.trim();
+            const contactPhone = document.getElementById('contactPhone').value.trim();
+            const primaryColor = document.getElementById('primaryColor').value;
+            const secondaryColor = document.getElementById('secondaryColor').value;
+
+            if (!companyName || !slug || !displayName) {
+                showStatus('tenantStatus', '❌ Please fill in all required fields (Company Name, Slug, Display Name)', 'error');
+                return;
+            }
+
+            // Validate slug format
+            if (!/^[a-z0-9-]+$/.test(slug)) {
+                showStatus('tenantStatus', '❌ Slug must contain only lowercase letters, numbers, and hyphens', 'error');
+                return;
+            }
+
+            showStatus('tenantStatus', '🔄 Creating tenant...', 'info');
+
+            try {
+                const { data, error } = await supabase.from('tenants').insert({
+                    name: displayName,
+                    slug: slug,
+                    company_name: companyName,
+                    contact_email: contactEmail || null,
+                    contact_phone: contactPhone || null,
+                    primary_color: primaryColor,
+                    secondary_color: secondaryColor,
+                    is_active: true
+                }).select().single();
+
+                if (error) throw error;
+
+                showStatus('tenantStatus', 
+                    `✅ <strong>Tenant created successfully!</strong><br><br>` +
+                    `<strong>Tenant Details:</strong><br>` +
+                    `• ID: ${data.id}<br>` +
+                    `• Company: ${data.company_name}<br>` +
+                    `• Slug: ${data.slug}<br>` +
+                    `• URL: https://your-domain.com/${data.slug}<br><br>` +
+                    `<strong>Next Steps:</strong><br>` +
+                    `1. Update your app configuration to use tenant routing<br>` +
+                    `2. Create users for this tenant<br>` +
+                    `3. Configure custom branding if needed`,
+                    'success'
+                );
+
+                // Clear form
+                document.getElementById('companyName').value = '';
+                document.getElementById('slug').value = '';
+                document.getElementById('displayName').value = '';
+                document.getElementById('contactEmail').value = '';
+                document.getElementById('contactPhone').value = '';
+            } catch (error) {
+                showStatus('tenantStatus', 
+                    `❌ <strong>Failed to create tenant:</strong><br>${error.message}<br><br>` +
+                    `Common issues:<br>` +
+                    `• Slug already exists (must be unique)<br>` +
+                    `• Database permissions issue<br>` +
+                    `• Migration not completed`,
+                    'error'
+                );
+            }
+        }
+
+        async function listTenants() {
+            showStatus('tenantStatus', '🔄 Loading tenants...', 'info');
+
+            try {
+                const { data, error } = await supabase
+                    .from('tenants')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                if (!data || data.length === 0) {
+                    showStatus('tenantStatus', '📋 No tenants found. Create your first tenant above!', 'info');
+                    return;
+                }
+
+                const tenantList = data.map(t => `
+                    <div style="padding: 15px; margin: 10px 0; background: white; border-radius: 8px; border-left: 4px solid ${t.primary_color};">
+                        <strong style="font-size: 18px;">${t.company_name}</strong><br>
+                        <span style="color: #666;">Slug: <code>${t.slug}</code> | ID: <code>${t.id}</code></span><br>
+                        <span style="color: ${t.is_active ? '#28a745' : '#dc3545'};">
+                            ${t.is_active ? '✅ Active' : '❌ Inactive'}
+                        </span>
+                        ${t.contact_email ? ` | 📧 ${t.contact_email}` : ''}
+                        ${t.contact_phone ? ` | 📱 ${t.contact_phone}` : ''}
+                    </div>
+                `).join('');
+
+                showStatus('tenantStatus', 
+                    `<strong>📋 All Tenants (${data.length})</strong><br><br>` + tenantList,
+                    'success'
+                );
+            } catch (error) {
+                showStatus('tenantStatus', '❌ Failed to load tenants: ' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

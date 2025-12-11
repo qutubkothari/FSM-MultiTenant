@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "FSM Mobile App",
-    "slug": "fsm-mobile-app",
+    "name": "SAK FSM",
+    "slug": "sak-fsm",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
