@@ -202,21 +202,24 @@ class SyncManager {
 
     const { visitData } = offlineVisit;
 
-    // Get salesman ID from phone
-    let salesmanId = visitData.salesman_id;
-    if (!salesmanId && visitData.user_phone) {
-      const { data: salesman } = await supabase
-        .from('salesmen')
-        .select('id')
-        .eq('phone', visitData.user_phone)
-        .maybeSingle();
-      
-      if (salesman) {
-        salesmanId = salesman.id;
-      } else {
-        throw new Error('Salesman not found in database');
-      }
+    // Always get salesman ID from phone
+    if (!visitData.user_phone) {
+      throw new Error('No phone number in offline visit data');
     }
+
+    const { data: salesman } = await supabase
+      .from('salesmen')
+      .select('id')
+      .eq('phone', visitData.user_phone)
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+    
+    if (!salesman) {
+      throw new Error(`Salesman not found for phone ${visitData.user_phone}`);
+    }
+
+    const salesmanId = salesman.id;
+    console.log(`✅ Found salesman ID: ${salesmanId} for phone: ${visitData.user_phone}`);
 
     // Upload image if exists
     let imageUrl = null;

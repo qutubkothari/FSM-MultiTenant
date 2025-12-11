@@ -568,7 +568,7 @@ export default function NewVisitForm({ onSuccess }: Props) {
 
         // Skip translation when offline - store as-is and translate during sync
         const offlineVisitData = {
-          salesman_id: user?.id, // Will be mapped to actual salesman_id during sync
+          // Don't store salesman_id - will be looked up by phone during sync
           customer_name: formData.customer_name,
           customer_name_ar: '', // Will be translated during sync
           contact_person: formData.contact_person || null,
