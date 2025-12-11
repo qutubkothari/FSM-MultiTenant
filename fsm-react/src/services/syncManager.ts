@@ -6,6 +6,7 @@
 import { offlineStorage, OfflineVisit } from './offlineStorage';
 import { supabase } from './supabase';
 import { useTenantStore } from '../store/tenantStore';
+import { autoTranslateBilingual } from './translationService';
 
 class SyncManager {
   private isSyncing = false;
@@ -249,15 +250,54 @@ class SyncManager {
       }
     }
 
+    // Translate fields if they're empty (from offline save)
+    let customerName = visitData.customer_name;
+    let customerNameAr = visitData.customer_name_ar;
+    let contactPerson = visitData.contact_person;
+    let contactPersonAr = visitData.contact_person_ar;
+    let remarks = visitData.remarks;
+    let remarksAr = visitData.remarks_ar;
+
+    if (customerName && !customerNameAr) {
+      try {
+        const translation = await autoTranslateBilingual(customerName);
+        customerName = translation.english;
+        customerNameAr = translation.arabic;
+      } catch (error) {
+        console.error('Failed to translate customer name:', error);
+        // Use original if translation fails
+      }
+    }
+
+    if (contactPerson && !contactPersonAr) {
+      try {
+        const translation = await autoTranslateBilingual(contactPerson);
+        contactPerson = translation.english;
+        contactPersonAr = translation.arabic;
+      } catch (error) {
+        console.error('Failed to translate contact person:', error);
+      }
+    }
+
+    if (remarks && !remarksAr) {
+      try {
+        const translation = await autoTranslateBilingual(remarks);
+        remarks = translation.english;
+        remarksAr = translation.arabic;
+      } catch (error) {
+        console.error('Failed to translate remarks:', error);
+      }
+    }
+
     // Insert visit into database with proper column names
     const { data, error } = await supabase
       .from('visits')
       .insert({
         salesman_id: salesmanId,
-        customer_name: visitData.customer_name,
-        customer_name_ar: visitData.customer_name_ar,
-        contact_person: visitData.contact_person,
-        contact_person_ar: visitData.contact_person_ar,
+        customer_name: customerName,
+        customer_name_ar: customerNameAr,
+        contact_person: contactPerson,
+        contact_person_ar: contactPersonAr,
         visit_type: visitData.visit_type,
         meeting_type: visitData.meeting_type,
         products_discussed: visitData.products_discussed || [],
@@ -266,8 +306,8 @@ class SyncManager {
         potential: visitData.potential || 'Medium',
         competitor_name: visitData.competitor_name || null,
         can_be_switched: visitData.can_be_switched || null,
-        remarks: visitData.remarks,
-        remarks_ar: visitData.remarks_ar,
+        remarks: remarks,
+        remarks_ar: remarksAr,
         location_lat: visitData.location_lat,
         location_lng: visitData.location_lng,
         time_in: visitData.check_in_time || new Date().toISOString(),

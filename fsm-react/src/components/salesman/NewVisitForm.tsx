@@ -566,21 +566,15 @@ export default function NewVisitForm({ onSuccess }: Props) {
           }
         }
 
-        // Auto-translate customer name, contact person, and remarks
-        const [customerTranslation, contactTranslation, remarksTranslation] = await Promise.all([
-          autoTranslateBilingual(formData.customer_name),
-          autoTranslateBilingual(formData.contact_person || ''),
-          autoTranslateBilingual(formData.remarks || '')
-        ]);
-
+        // Skip translation when offline - store as-is and translate during sync
         const offlineVisitData = {
           salesman_id: user?.id, // Will be mapped to actual salesman_id during sync
-          customer_name: customerTranslation.english,
-          customer_name_ar: customerTranslation.arabic,
-          contact_person: contactTranslation.english || null,
-          contact_person_ar: contactTranslation.arabic || null,
-          remarks: remarksTranslation.english || null,
-          remarks_ar: remarksTranslation.arabic || null,
+          customer_name: formData.customer_name,
+          customer_name_ar: '', // Will be translated during sync
+          contact_person: formData.contact_person || null,
+          contact_person_ar: '', // Will be translated during sync
+          remarks: formData.remarks || null,
+          remarks_ar: '', // Will be translated during sync
           tenant_id: user?.tenant_id,
           plant: formData.plant,
           visit_type: formData.visit_type,
