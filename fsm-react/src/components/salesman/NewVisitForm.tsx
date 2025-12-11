@@ -1202,7 +1202,7 @@ export default function NewVisitForm({ onSuccess }: Props) {
                 endIcon={<SendIcon />}
                 disabled={
                   loading || 
-                  (formData.visit_type === 'personal' && (!formData.location_lat || !formData.visit_image))
+                  (formData.visit_type === 'personal' && !formData.visit_image)
                 }
               >
                 {loading ? t('submitting') : t('submitVisit')}
