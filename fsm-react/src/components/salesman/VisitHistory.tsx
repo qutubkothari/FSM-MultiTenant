@@ -29,37 +29,130 @@ import { useAuthStore } from '../../store/authStore';
 import { visitService, supabase } from '../../services/supabase';
 import { format } from 'date-fns';
 import { useTranslation } from 'react-i18next';
+import { getBilingualDisplay } from '../../utils/arabicUtils';
+import { plantService, Plant } from '../../services/plantService';
+import { useTenantStore } from '../../store/tenantStore';
+import { syncManager } from '../../services/syncManager';
 
 export default function VisitHistory() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuthStore();
+  const { tenant } = useTenantStore();
   const [visits, setVisits] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [plants, setPlants] = useState<Plant[]>([]);
   const [loading, setLoading] = useState(true);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedVisit, setSelectedVisit] = useState<any>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const PAGE_SIZE = 10;
 
   useEffect(() => {
-    loadVisits();
+    loadVisits(true);
     loadProducts();
+    
+    // Listen for sync completion to refresh visits
+    const unsubscribe = syncManager.onSyncComplete((result) => {
+      if (result.success > 0) {
+        console.log('✅ Sync completed, refreshing visit history...');
+        loadVisits(true);
+      }
+    });
+    
+    return unsubscribe;
   }, [user]);
 
-  const loadVisits = async () => {
-    if (!user) return;
-    setLoading(true);
+  useEffect(() => {
+    if (tenant?.id) {
+      loadPlants();
+    }
+  }, [tenant?.id]);
+
+  const loadPlants = async () => {
     try {
-      const data = await visitService.getVisits(undefined, user.phone);
-      setVisits(data);
+      if (!tenant?.id) {
+        console.log('VisitHistory: No tenant ID available');
+        return;
+      }
+      console.log('VisitHistory: Loading plants for tenant:', tenant.id);
+      const data = await plantService.getPlants(tenant.id);
+      console.log('VisitHistory: Loaded plants:', data);
+      setPlants(data);
+    } catch (error) {
+      console.error('Error loading plants:', error);
+    }
+  };
+
+  const loadVisits = async (reset = false) => {
+    if (!user) {
+      console.log('VisitHistory: No user available');
+      setLoading(false);
+      return;
+    }
+    
+    if (reset) setLoading(true);
+
+    try {
+      // Auto-load tenant if missing
+      if (!tenant && user.tenant_id) {
+        console.log('VisitHistory: Auto-loading tenant for user');
+        const { data: tenantData } = await supabase
+          .from('tenants')
+          .select('*')
+          .eq('id', user.tenant_id)
+          .single();
+        
+        if (tenantData) {
+          useTenantStore.getState().setTenant({
+            id: tenantData.id,
+            name: tenantData.name,
+            slug: tenantData.slug,
+            companyName: tenantData.company_name,
+            logoUrl: tenantData.logo_url,
+            primaryColor: tenantData.primary_color || '#1976d2',
+            secondaryColor: tenantData.secondary_color || '#dc004e',
+            isActive: tenantData.is_active,
+            defaultLanguage: tenantData.default_language || 'en',
+            translationEnabled: tenantData.translation_enabled || false,
+            currencyCode: tenantData.currency_code || 'USD',
+            currencySymbol: tenantData.currency_symbol || '$',
+          });
+        }
+      }
+      
+      const currentPage = reset ? 0 : page;
+      console.log(`VisitHistory: Loading visits page ${currentPage}`);
+      
+      const data = await visitService.getVisits(undefined, user.phone, PAGE_SIZE, currentPage);
+      console.log('VisitHistory: Loaded visits:', data?.length || 0);
+      
+      if (reset) {
+        setVisits(data || []);
+        setPage(1);
+        setHasMore((data?.length || 0) >= PAGE_SIZE);
+      } else {
+        setVisits(prev => [...prev, ...(data || [])]);
+        setPage(prev => prev + 1);
+        if (!data || data.length < PAGE_SIZE) {
+          setHasMore(false);
+        }
+      }
     } catch (error) {
       console.error('Error loading visits:', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const loadProducts = async () => {
     try {
-      const { data } = await supabase.from('products').select('*');
+      if (!tenant?.id) return;
+      const { data } = await supabase
+        .from('products')
+        .select('*')
+        .eq('tenant_id', tenant.id);
       setProducts(data || []);
     } catch (error) {
       console.error('Error loading products:', error);
@@ -115,7 +208,7 @@ export default function VisitHistory() {
         <Typography variant="h6" fontWeight={600}>
           {t('visitHistory')}
         </Typography>
-        <IconButton onClick={loadVisits} disabled={loading}>
+        <IconButton onClick={() => loadVisits(true)} disabled={loading}>
           <RefreshIcon />
         </IconButton>
       </Box>
@@ -135,7 +228,7 @@ export default function VisitHistory() {
               <CardContent>
                 <Box display="flex" justifyContent="space-between" alignItems="start" mb={1}>
                   <Typography variant="h6" fontWeight={600}>
-                    {visit.customer_name}
+                    {getBilingualDisplay(visit.customer_name, visit.customer_name_ar, i18n.language === 'ar')}
                   </Typography>
                   <Box display="flex" alignItems="center" gap={1}>
                     <Chip
@@ -182,6 +275,14 @@ export default function VisitHistory() {
                     size="small"
                     sx={{ textTransform: 'capitalize' }}
                   />
+                  {visit.order_value > 0 && (
+                    <Chip
+                      label={`${t('order')}: ${tenant?.currencySymbol || '$'}${visit.order_value.toLocaleString()}`}
+                      size="small"
+                      color="success"
+                      sx={{ fontWeight: 600 }}
+                    />
+                  )}
                   {visit.location_address && (
                     <Chip
                       icon={<LocationIcon />}
@@ -240,6 +341,19 @@ export default function VisitHistory() {
         </Box>
       )}
 
+      {/* Load More Button */}
+      {hasMore && visits.length > 0 && (
+        <Box display="flex" justifyContent="center" mt={2} mb={2}>
+          <Button 
+            variant="outlined" 
+            onClick={() => loadVisits(false)}
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={24} /> : t('loadMore')}
+          </Button>
+        </Box>
+      )}
+
       {/* Status Change Menu */}
       <Menu
         anchorEl={anchorEl}
@@ -278,7 +392,11 @@ export default function VisitHistory() {
                     {t('customerName')}
                   </Typography>
                   <Typography variant="body1" fontWeight={500} gutterBottom>
-                    {selectedVisit.customer_name || 'N/A'}
+                    {getBilingualDisplay(
+                      selectedVisit.customer_name,
+                      selectedVisit.customer_name_ar,
+                      i18n.language === 'ar'
+                    ) || 'N/A'}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -286,7 +404,11 @@ export default function VisitHistory() {
                     {t('contactPerson')}
                   </Typography>
                   <Typography variant="body1" gutterBottom>
-                    {selectedVisit.contact_person || 'N/A'}
+                    {getBilingualDisplay(
+                      selectedVisit.contact_person,
+                      selectedVisit.contact_person_ar,
+                      i18n.language === 'ar'
+                    ) || 'N/A'}
                   </Typography>
                 </Grid>
                 <Grid item xs={12}>
@@ -306,6 +428,16 @@ export default function VisitHistory() {
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" color="text.secondary">
+                    {t('orderValue')}
+                  </Typography>
+                  <Typography variant="body1" fontWeight={600} color="success.main" gutterBottom>
+                    {selectedVisit.order_value && selectedVisit.order_value > 0
+                      ? `${tenant?.currencySymbol || '$'}${selectedVisit.order_value.toLocaleString()}`
+                      : 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2" color="text.secondary">
                     {t('productsDiscussed')}
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>
@@ -316,7 +448,11 @@ export default function VisitHistory() {
                           return (
                             <Chip
                               key={productId}
-                              label={product?.name || productId}
+                              label={getBilingualDisplay(
+                                product?.name,
+                                product?.name_ar,
+                                i18n.language === 'ar'
+                              ) || productId}
                               size="small"
                               color="primary"
                               variant="outlined"
@@ -333,9 +469,23 @@ export default function VisitHistory() {
                   <Typography variant="subtitle2" color="text.secondary">
                     {t('nextAction')}
                   </Typography>
-                  <Typography variant="body1" gutterBottom>
-                    {selectedVisit.next_action ? t(selectedVisit.next_action) : 'N/A'}
-                  </Typography>
+                  {selectedVisit.next_action && Array.isArray(selectedVisit.next_action) ? (
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>
+                      {selectedVisit.next_action.map((action: string, index: number) => (
+                        <Chip
+                          key={index}
+                          label={t(action)}
+                          size="small"
+                          color="secondary"
+                          variant="outlined"
+                        />
+                      ))}
+                    </Box>
+                  ) : (
+                    <Typography variant="body1" gutterBottom>
+                      {selectedVisit.next_action ? t(selectedVisit.next_action) : 'N/A'}
+                    </Typography>
+                  )}
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" color="text.secondary">
@@ -396,11 +546,32 @@ export default function VisitHistory() {
                   </Typography>
                   {selectedVisit.location_lat && selectedVisit.location_lng && (
                     <Typography variant="caption" color="text.secondary">
-                      GPS: {selectedVisit.location_lat.toFixed(4)},{' '}
+                      {t('gps')}: {selectedVisit.location_lat.toFixed(4)},{' '}
                       {selectedVisit.location_lng.toFixed(4)}
                     </Typography>
                   )}
                 </Grid>
+                {selectedVisit.plant && Array.isArray(selectedVisit.plant) && selectedVisit.plant.length > 0 && (
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      {t('plants')}
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>
+                      {selectedVisit.plant.map((plantId: string) => {
+                        const plant = plants.find(p => p.id === plantId);
+                        return (
+                          <Chip
+                            key={plantId}
+                            label={plant ? `${plant.plant_name} (${plant.plant_code})` : plantId}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                          />
+                        );
+                      })}
+                    </Box>
+                  </Grid>
+                )}
                 <Grid item xs={12}>
                   <Typography variant="subtitle2" color="text.secondary">
                     {t('remarks')}

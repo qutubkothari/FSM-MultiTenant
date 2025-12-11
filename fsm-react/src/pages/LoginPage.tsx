@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -14,19 +14,25 @@ import {
   DialogActions,
   MenuItem,
   Link,
+  IconButton,
+  Menu,
 } from '@mui/material';
 import {
   Phone as PhoneIcon,
   Person as PersonIcon,
   Lock as LockIcon,
+  Language as LanguageIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '../store/authStore';
 import { useTranslation } from 'react-i18next';
-import LanguageSwitcher from '../components/LanguageSwitcher';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
+import { normalizeArabicNumerals } from '../utils/arabicUtils';
+import { APP_VERSION, BUILD_DATE } from '../version';
 
 export default function LoginPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -41,17 +47,49 @@ export default function LoginPage() {
   const [registerError, setRegisterError] = useState('');
   const [registerSuccess, setRegisterSuccess] = useState('');
   const login = useAuthStore((state) => state.login);
+  const [langMenuAnchor, setLangMenuAnchor] = useState<null | HTMLElement>(null);
+
+  // Force English on login page load ONLY ONCE
+  useEffect(() => {
+    const currentLang = localStorage.getItem('i18nextLng');
+    if (!currentLang || currentLang !== 'en') {
+      i18n.changeLanguage('en');
+      localStorage.setItem('i18nextLng', 'en');
+      document.documentElement.dir = 'ltr';
+      document.documentElement.lang = 'en';
+    }
+  }, []); // Empty dependency array - run only once on mount
+
+  const handleLanguageMenuOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setLangMenuAnchor(event.currentTarget);
+  };
+
+  const handleLanguageMenuClose = () => {
+    setLangMenuAnchor(null);
+  };
+
+  const changeLanguage = (lang: string) => {
+    i18n.changeLanguage(lang);
+    localStorage.setItem('i18nextLng', lang);
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = lang;
+    handleLanguageMenuClose();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
+    console.log('🔥🔥🔥 LOGIN PAGE: Form submitted - NEW CODE v2');
     console.log('Login form submitted');
     
     // Clear previous error
     setError('');
 
-    if (!phone || phone.length < 10) {
+    // Normalize phone to handle Arabic numerals
+    const normalizedPhone = normalizeArabicNumerals(phone);
+    
+    if (!normalizedPhone || normalizedPhone.length < 10) {
       const msg = t('enterValidPhone');
       console.log('Validation error:', msg);
       setError(msg);
@@ -59,7 +97,10 @@ export default function LoginPage() {
       return;
     }
 
-    if (!password || password.length < 6) {
+    // Normalize password to handle Arabic numerals
+    const normalizedPassword = normalizeArabicNumerals(password);
+    
+    if (!normalizedPassword || normalizedPassword.length < 6) {
       const msg = t('passwordMinLength');
       console.log('Validation error:', msg);
       setError(msg);
@@ -67,11 +108,13 @@ export default function LoginPage() {
       return;
     }
 
-    console.log('Attempting login with phone:', phone);
+    console.log('🔥🔥🔥 LOGIN PAGE: Calling authStore.login()');
+    console.log('Attempting login with phone:', normalizedPhone);
     setLoading(true);
     
     try {
-      await login(phone, password);
+      await login(normalizedPhone, normalizedPassword);
+      console.log('🔥🔥🔥 LOGIN PAGE: Login completed successfully');
       console.log('Login successful');
       // Success - will redirect via App.tsx
     } catch (err: any) {
@@ -112,37 +155,49 @@ export default function LoginPage() {
     setRegisterError('');
     setRegisterSuccess('');
 
-    if (!registerData.phone || registerData.phone.length < 10) {
+    console.log('Starting user registration...', { phone: registerData.phone, name: registerData.name, role: registerData.role });
+
+    // Normalize phone and password to handle Arabic numerals
+    const normalizedPhone = normalizeArabicNumerals(registerData.phone);
+    const normalizedPassword = normalizeArabicNumerals(registerData.password);
+
+    if (!normalizedPhone || normalizedPhone.length < 10) {
+      console.log('Validation failed: Invalid phone number');
       setRegisterError(t('enterValidPhone'));
       return;
     }
 
     if (!registerData.name || registerData.name.trim().length < 2) {
+      console.log('Validation failed: Invalid name');
       setRegisterError(t('enterYourName'));
       return;
     }
 
-    if (!registerData.password || registerData.password.length < 6) {
+    if (!normalizedPassword || normalizedPassword.length < 6) {
+      console.log('Validation failed: Password too short');
       setRegisterError(t('passwordMinLength'));
       return;
     }
 
     setLoading(true);
     try {
+      console.log('Attempting to insert user into database...');
       // Insert into users table
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('users')
         .insert([
           {
-            phone: registerData.phone,
+            phone: normalizedPhone,
             name: registerData.name.trim(),
-            password: registerData.password,
+            password: normalizedPassword,
             role: registerData.role,
           },
         ])
         .select();
 
       if (error) {
+        console.error('Database error during registration:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
         if (error.message.includes('duplicate') || error.code === '23505') {
           setRegisterError(t('phoneAlreadyRegistered'));
         } else {
@@ -152,6 +207,7 @@ export default function LoginPage() {
         return;
       }
 
+      console.log('User registered successfully:', data);
       setRegisterSuccess(t('registrationSuccessful'));
       setTimeout(() => {
         setRegisterOpen(false);
@@ -159,6 +215,8 @@ export default function LoginPage() {
         setRegisterData({ phone: '', name: '', password: '', role: 'salesman' });
       }, 2000);
     } catch (err: any) {
+      console.error('Unexpected error during registration:', err);
+      console.error('Error details:', JSON.stringify(err, null, 2));
       setRegisterError(err.message || t('registrationFailed'));
     }
     setLoading(false);
@@ -175,9 +233,45 @@ export default function LoginPage() {
       }}
     >
       <Container maxWidth="sm">
-        {/* Language Switcher - Top Right */}
+        {/* Language Switcher - Top Right - Always visible on login page */}
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-          <LanguageSwitcher />
+          <IconButton
+            color="inherit"
+            onClick={handleLanguageMenuOpen}
+            sx={{
+              border: '1px solid rgba(255,255,255,0.5)',
+              borderRadius: 2,
+              color: 'white',
+              '&:hover': {
+                backgroundColor: 'rgba(255,255,255,0.1)',
+              }
+            }}
+          >
+            <LanguageIcon />
+            <Typography variant="body2" sx={{ ml: 1, fontWeight: 600 }}>
+              {i18n.language === 'ar' ? 'عربي' : 'EN'}
+            </Typography>
+          </IconButton>
+          <Menu
+            anchorEl={langMenuAnchor}
+            open={Boolean(langMenuAnchor)}
+            onClose={handleLanguageMenuClose}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+          >
+            <MenuItem onClick={() => changeLanguage('en')}>
+              <Typography>English</Typography>
+            </MenuItem>
+            <MenuItem onClick={() => changeLanguage('ar')}>
+              <Typography>العربية</Typography>
+            </MenuItem>
+          </Menu>
         </Box>
         
         <Paper
@@ -189,33 +283,34 @@ export default function LoginPage() {
             backdropFilter: 'blur(10px)',
           }}
         >
-          {/* Logo & Title */}
-          <Box sx={{ textAlign: 'center', mb: 4 }}>
+          {/* Logo - Independent Container */}
+
+          <Box sx={{ textAlign: 'center', mb: { xs: 2, md: -8 } }}>
+            <img
+              src="/sak-ai-logo-with-company-name-1.png"
+              alt="SAK Solutions"
+              style={{
+                height: window.innerWidth < 768 ? '260px' : '320px',
+                width: 'auto',
+                display: 'block',
+                margin: '0 auto',
+                marginBottom: window.innerWidth < 768 ? '24px' : '-64px'
+              }}
+            />
+          </Box>
+
+          {/* Text - Independent Container */}
+          <Box sx={{ textAlign: 'center', mb: 3 }}>
             <Typography
               sx={{
-                fontSize: '3rem',
-                fontWeight: 700,
-                letterSpacing: '0.1em',
-                color: '#1976d2',
-                mb: 2,
+                color: '#1a3a5c',
+                fontWeight: 600,
+                fontSize: window.innerWidth < 768 ? '0.9rem' : '1.5rem',
+                letterSpacing: '1px',
+                fontFamily: '"Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif'
               }}
             >
-              HYL<span style={{ color: '#D32F2F' }}>i</span>TE
-            </Typography>
-            <Typography
-              variant="h4"
-              gutterBottom
-              sx={{
-                fontWeight: 700,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-            >
-              Field Sales Management
-            </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-              {t('fieldSalesManagement')}
+              SAK FSM
             </Typography>
           </Box>
 
@@ -311,35 +406,40 @@ export default function LoginPage() {
             </Button>
 
             {/* Register Link */}
-            <Box sx={{ mt: 2, textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
-                {t('dontHaveAccount')}{' '}
-                <Link
-                  component="button"
-                  type="button"
-                  variant="body2"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setRegisterOpen(true);
-                  }}
-                  sx={{
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textDecoration: 'none',
-                    '&:hover': { textDecoration: 'underline' },
-                  }}
-                >
-                  {t('register')}
-                </Link>
-              </Typography>
-            </Box>
+              {window.innerWidth >= 768 && (
+                <Box sx={{ mt: 2, textAlign: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    New company?{' '}
+                    <Link
+                      component="button"
+                      type="button"
+                      variant="body2"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        navigate('/register');
+                      }}
+                      sx={{
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        textDecoration: 'none',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                    >
+                      Register your company
+                    </Link>
+                  </Typography>
+                </Box>
+              )}
           </form>
 
           {/* Footer */}
           <Box sx={{ mt: 4, textAlign: 'center' }}>
             <Typography variant="caption" color="text.secondary">
               {t('professionalFieldSales')}
+            </Typography>
+            <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1, fontSize: '0.7rem' }}>
+              v{APP_VERSION} • {BUILD_DATE}
             </Typography>
           </Box>
         </Paper>

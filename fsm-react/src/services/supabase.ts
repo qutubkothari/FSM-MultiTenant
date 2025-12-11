@@ -1,7 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
+import { useTenantStore } from '../store/tenantStore';
 
+// Original SAK-FSM Supabase Configuration
+// Force new bundle hash to clear browser cache - Debug currency loading v3 with fire emojis
+export const CACHE_VERSION = 'v1.0.20251209-debug3-fire'; 
 const supabaseUrl = 'https://ktvrffbccgxtaststlhw.supabase.co';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseKey = 'sb_publishable_sNhpQ5W6i_KuIPcT6bjjnw_BcJwPljV';
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
@@ -38,14 +42,27 @@ export const authService = {
       throw new Error('Invalid phone number or password');
     }
 
+    // Get assigned_plants from user record (already in users table)
+    let assigned_plants: string[] = user.assigned_plants || [];
+    
+    console.log('🔐 Login success - Plant access:', {
+      name: user.name,
+      role: user.role,
+      assigned_plants: assigned_plants,
+      hasFullAccess: assigned_plants.length === 0
+    });
+
     return {
       id: user.id,
       phone: user.phone,
       name: user.name,
-      role: user.role as 'admin' | 'salesman',
-      email: user.email,
+      name_ar: user.name_ar,
+      role: user.role as 'admin' | 'salesman' | 'super_admin',
       created_at: user.created_at,
       is_active: user.is_active,
+      tenant_id: user.tenant_id,
+      preferred_language: user.preferred_language,
+      assigned_plants: assigned_plants,
     };
   },
 
@@ -58,9 +75,12 @@ export const authService = {
 // Visit service
 export const visitService = {
   async createVisit(visitData: any) {
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) throw new Error('No tenant selected');
+    
     const { data, error } = await supabase
       .from('visits')
-      .insert([visitData])
+      .insert([{ ...visitData, tenant_id: tenantId }])
       .select()
       .single();
 
@@ -68,10 +88,15 @@ export const visitService = {
     return data;
   },
 
-  async getVisits(salesmanId?: string, userPhone?: string, limit?: number) {
+  async getVisits(salesmanId?: string, userPhone?: string, limit?: number, page?: number) {
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) throw new Error('No tenant selected');
+    
     let query = supabase
       .from('visits')
       .select('*')
+      .eq('tenant_id', tenantId)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
     // If userPhone is provided, look up the salesman_id from phone
@@ -80,6 +105,7 @@ export const visitService = {
         .from('salesmen')
         .select('id')
         .eq('phone', userPhone)
+        .is('deleted_at', null)
         .maybeSingle();
       
       if (salesman) {
@@ -91,8 +117,12 @@ export const visitService = {
       query = query.eq('salesman_id', salesmanId);
     }
 
-    // Add limit if specified for performance
-    if (limit) {
+    // Handle pagination or limit
+    if (page !== undefined && limit) {
+      const from = page * limit;
+      const to = from + limit - 1;
+      query = query.range(from, to);
+    } else if (limit) {
       query = query.limit(limit);
     }
 
@@ -102,10 +132,14 @@ export const visitService = {
   },
 
   async updateVisit(id: string, updates: any) {
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) throw new Error('No tenant selected');
+    
     const { data, error } = await supabase
       .from('visits')
       .update(updates)
       .eq('id', id)
+      .eq('tenant_id', tenantId)
       .select()
       .single();
 
@@ -114,27 +148,43 @@ export const visitService = {
   },
 
   async deleteVisit(id: string) {
-    const { error } = await supabase.from('visits').delete().eq('id', id);
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) throw new Error('No tenant selected');
+    
+    const { error } = await supabase
+      .from('visits')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('tenant_id', tenantId);
     if (error) throw error;
   },
 };
 
 // Product service
 export const productService = {
-  async getProducts() {
-    const { data, error } = await supabase
+  async getProducts(tenantId?: string) {
+    let query = supabase
       .from('products')
       .select('*')
-      .order('name');
+      .is('deleted_at', null);
+    
+    if (tenantId) {
+      query = query.eq('tenant_id', tenantId);
+    }
+    
+    const { data, error } = await query.order('name');
 
     if (error) throw error;
     return data;
   },
 
   async createProduct(productData: any) {
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) throw new Error('No tenant selected');
+    
     const { data, error } = await supabase
       .from('products')
-      .insert([productData])
+      .insert([{ ...productData, tenant_id: tenantId }])
       .select()
       .single();
 
@@ -143,10 +193,14 @@ export const productService = {
   },
 
   async updateProduct(id: string, updates: any) {
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) throw new Error('No tenant selected');
+    
     const { data, error } = await supabase
       .from('products')
       .update(updates)
       .eq('id', id)
+      .eq('tenant_id', tenantId)
       .select()
       .single();
 
@@ -155,7 +209,14 @@ export const productService = {
   },
 
   async deleteProduct(id: string) {
-    const { error } = await supabase.from('products').delete().eq('id', id);
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) throw new Error('No tenant selected');
+    
+    const { error } = await supabase
+      .from('products')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('tenant_id', tenantId);
     if (error) throw error;
   },
 };
@@ -163,9 +224,14 @@ export const productService = {
 // Salesman service
 export const salesmanService = {
   async getSalesmen() {
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) throw new Error('No tenant selected');
+    
     const { data, error } = await supabase
       .from('salesmen')
       .select('*')
+      .eq('tenant_id', tenantId)
+      .is('deleted_at', null)
       .order('name');
 
     if (error) throw error;
@@ -173,9 +239,12 @@ export const salesmanService = {
   },
 
   async createSalesman(salesmanData: any) {
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) throw new Error('No tenant selected');
+    
     const { data, error } = await supabase
       .from('salesmen')
-      .insert([salesmanData])
+      .insert([{ ...salesmanData, tenant_id: tenantId }])
       .select()
       .single();
 
@@ -184,10 +253,14 @@ export const salesmanService = {
   },
 
   async updateSalesman(id: string, updates: any) {
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) throw new Error('No tenant selected');
+    
     const { data, error } = await supabase
       .from('salesmen')
       .update(updates)
       .eq('id', id)
+      .eq('tenant_id', tenantId)
       .select()
       .single();
 
@@ -196,7 +269,14 @@ export const salesmanService = {
   },
 
   async deleteSalesman(id: string) {
-    const { error } = await supabase.from('salesmen').delete().eq('id', id);
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) throw new Error('No tenant selected');
+    
+    const { error } = await supabase
+      .from('salesmen')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('tenant_id', tenantId);
     if (error) throw error;
   },
 };
@@ -204,9 +284,14 @@ export const salesmanService = {
 // Customer service
 export const customerService = {
   async getCustomers() {
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) throw new Error('No tenant selected');
+    
     const { data, error } = await supabase
       .from('customers')
       .select('*')
+      .eq('tenant_id', tenantId)
+      .is('deleted_at', null)
       .order('name');
 
     if (error) throw error;
@@ -214,9 +299,12 @@ export const customerService = {
   },
 
   async createCustomer(customerData: any) {
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) throw new Error('No tenant selected');
+    
     const { data, error } = await supabase
       .from('customers')
-      .insert([customerData])
+      .insert([{ ...customerData, tenant_id: tenantId }])
       .select()
       .single();
 
@@ -225,10 +313,14 @@ export const customerService = {
   },
 
   async updateCustomer(id: string, updates: any) {
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) throw new Error('No tenant selected');
+    
     const { data, error } = await supabase
       .from('customers')
       .update(updates)
       .eq('id', id)
+      .eq('tenant_id', tenantId)
       .select()
       .single();
 
@@ -237,7 +329,14 @@ export const customerService = {
   },
 
   async deleteCustomer(id: string) {
-    const { error } = await supabase.from('customers').delete().eq('id', id);
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) throw new Error('No tenant selected');
+    
+    const { error } = await supabase
+      .from('customers')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('tenant_id', tenantId);
     if (error) throw error;
   },
 };
@@ -245,9 +344,14 @@ export const customerService = {
 // Targets service
 export const targetsService = {
   async getTargets(salesmanId?: string, month?: number, year?: number) {
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) throw new Error('No tenant selected');
+    
     let query = supabase
       .from('salesman_targets')
       .select('*')
+      .eq('tenant_id', tenantId)
+      .is('deleted_at', null)
       .order('year', { ascending: false })
       .order('month', { ascending: false });
 
@@ -269,6 +373,7 @@ export const targetsService = {
     const { data: salesmenData } = await supabase
       .from('salesmen')
       .select('id, name')
+      .is('deleted_at', null)
       .in('id', salesmenIds);
     
     const salesmenMap = new Map(salesmenData?.map((s: any) => [s.id, s.name]));
@@ -283,6 +388,7 @@ export const targetsService = {
     const { data, error } = await supabase
       .from('salesman_targets')
       .select('*')
+      .is('deleted_at', null)
       .eq('salesman_id', salesmanId)
       .eq('month', month)
       .eq('year', year)
@@ -295,6 +401,7 @@ export const targetsService = {
       const { data: salesmanData } = await supabase
         .from('salesmen')
         .select('name')
+        .is('deleted_at', null)
         .eq('id', salesmanId)
         .single();
       
@@ -307,9 +414,12 @@ export const targetsService = {
   },
 
   async createTarget(targetData: any) {
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) throw new Error('No tenant selected');
+    
     const { data, error } = await supabase
       .from('salesman_targets')
-      .insert([targetData])
+      .insert([{ ...targetData, tenant_id: tenantId }])
       .select()
       .single();
 
@@ -318,10 +428,14 @@ export const targetsService = {
   },
 
   async updateTarget(id: string, updates: any) {
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) throw new Error('No tenant selected');
+    
     const { data, error } = await supabase
       .from('salesman_targets')
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', id)
+      .eq('tenant_id', tenantId)
       .select()
       .single();
 
@@ -343,7 +457,14 @@ export const targetsService = {
   },
 
   async deleteTarget(id: string) {
-    const { error } = await supabase.from('salesman_targets').delete().eq('id', id);
+    const tenantId = useTenantStore.getState().tenant?.id;
+    if (!tenantId) throw new Error('No tenant selected');
+    
+    const { error } = await supabase
+      .from('salesman_targets')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('tenant_id', tenantId);
     if (error) throw error;
   },
 };

@@ -40,8 +40,8 @@ export default function AIInsights() {
     
     setLoading(true);
     try {
-      // Get recent 50 visits for this salesman for performance
-      const visits = await visitService.getVisits(undefined, user.phone, 50);
+      // Get recent 10 visits for this salesman for performance
+      const visits = await visitService.getVisits(undefined, user.phone, 10);
       
       // Get AI insights and recommendations
       const [insightsData, recommendationsData] = await Promise.all([

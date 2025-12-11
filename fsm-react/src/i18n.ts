@@ -29,8 +29,18 @@ const resources = {
       // Common
       "submit": "Submit",
       "cancel": "Cancel",
+      "ok": "OK",
       "save": "Save",
       "delete": "Delete",
+      "confirmDelete": "Are you sure you want to delete this?",
+      "confirmDeleteVisit": "Are you sure you want to delete this visit?",
+      "confirmDeleteProduct": "Are you sure you want to delete this product?",
+      "confirmDeleteSalesman": "Are you sure you want to delete this salesman?",
+      "confirmDeleteCustomer": "Are you sure you want to delete this customer?",
+      "confirmDeleteTarget": "Are you sure you want to delete this target?",
+      "confirmDeletePlant": "Are you sure you want to delete this company?",
+      "deleteSuccess": "Deleted successfully",
+      "deleteFailed": "Failed to delete",
       "edit": "Edit",
       "view": "View",
       "close": "Close",
@@ -38,6 +48,7 @@ const resources = {
       "filter": "Filter",
       "export": "Export",
       "refresh": "Refresh",
+      "loadMore": "Load More",
       "loading": "Loading...",
       "noData": "No data available",
       "success": "Success",
@@ -58,6 +69,10 @@ const resources = {
       "thisMonth": "This Month",
       "lastMonth": "Last Month",
       "custom": "Custom",
+      "adminPortal": "Admin Portal",
+      "settings": "Settings",
+      "enableArabicTranslation": "Enable Arabic Translation",
+      "allowUsersToSwitchLanguage": "Allow users to switch between English and Arabic. Disable this for English-only companies.",
       
       // Dashboard
       "dashboard": "Dashboard",
@@ -96,6 +111,8 @@ const resources = {
       "excellent": "Excellent",
       "good": "Good",
       "avg": "avg",
+      "loadingData": "Loading dashboard data...",
+      "dashboardReady": "Your dashboard is ready! Add salesmen and create visits to see performance metrics here.",
       "addProduct": "Add Product",
       "editProduct": "Edit Product",
       "addCustomer": "Add Customer",
@@ -173,6 +190,15 @@ const resources = {
       "lastMeeting": "Last Meeting",
       "status": "Status",
       
+      // Company
+      "plants": "Company",
+      "plantsManagement": "Company Management",
+      "plantCode": "Company Code",
+      "plantName": "Company Name",
+      "addPlant": "Add Company",
+      "editPlant": "Edit Company",
+      "addNewPlant": "Add New Company",
+      
       // Visit
       "visit": "Visit",
       "visits": "Visits",
@@ -241,6 +267,8 @@ const resources = {
       "selectAllThatApply": "(Select all that apply)",
       "selectAllDiscussed": "(Select all discussed)",
       "remarksNotes": "Remarks / Notes",
+      "remarksPlaceholder": "Any additional notes about this visit...",
+      "canBeSwitchedQuestion": "Can be switched?",
       "photoOfLocation": "Photo of Location/Office",
       
       // Offline
@@ -299,7 +327,15 @@ const resources = {
       "meeting": "Meeting",
       "sendSample": "Send Sample",
       "visitAgainWithManagement": "Visit Again with Management",
-      "inviteToFactory": "Invite to Factory",
+      "commercialWIP": "Commercial WIP",
+      "closedOrder": "Closed Order",
+      
+      // Bilingual Fields
+      "bilingualInput": "Bilingual Input",
+      "english": "English",
+      "arabic": "Arabic",
+      "atLeastOneLanguageRequired": "At least one language is required",
+      "pressTabToTranslate": "Press Tab to auto-translate to the other language",
       "currentlyWithCompetitor": "Currently with Competitor (if any)",
       "additionalNotes": "Additional notes or observations",
       "takePhoto": "Take Photo",
@@ -308,24 +344,51 @@ const resources = {
       "imageVerificationFailed": "Image verification failed!",
       "score": "Score",
       "removeAndRetake": "Remove & Retake",
+      "enterOrderValue": "Enter Order Value",
+      "orderValueRupees": "Order Value",
+      "enterOrderValueHelper": "Enter the order value in rupees",
+      "pleaseEnterValidOrderValue": "Please enter a valid order value",
       "refreshGPS": "Refresh GPS",
+      "gps": "GPS",
+      "visitPhoto": "Visit Photo",
+      "loadPhoto": "Load Photo",
+      "visitLocation": "Visit location",
+      "clickImageToViewFullSize": "Click image to view full size",
+      "visitDate": "Visit Date",
+      "clientsVisitedBy": "Clients Visited by",
+      "noClientsFound": "No clients found",
       "getting": "Getting...",
       "submitting": "Submitting...",
       "submitVisit": "Submit Visit",
+      "viewClients": "View Clients",
+      "startingMigration": "Starting migration...",
+      "foundVisitsToMigrate": "Found {count} visits to migrate...",
+      "processingVisit": "Processing {current} of {total}...",
+      "migrationComplete": "Migration complete! Success: {success}, Failed: {failed}",
+      "migrationFailed": "Migration failed. Please try again.",
+      "noTenantSelected": "No tenant selected",
+      "noDataToExport": "No data to export",
+      "exportToExcel": "Export to Excel",
+      "filterByCompany": "Filter by Company",
+      "filterBySalesman": "Filter by Salesman",
+      "allCompanies": "All Companies",
+      "allSalesmen": "All Salesmen",
+      "clearFilters": "Clear Filters",
+      "confirmGpsToAddressConversion": "This will convert all GPS coordinates to actual addresses. This may take a few minutes. Continue?",
       
       // AI Insights Component
       "recommendedCustomersToVisit": "Recommended Customers to Visit",
       "noInsightsYet": "No insights available yet. Complete more visits to get personalized recommendations.",
       "greatJob": "Great job! All your customers have been visited recently.",
       "greatPerformance": "Great Performance!",
-      "visitsCompletedToday": "You've completed {count} visits today. Keep up the excellent work!",
+      "visitsCompletedToday": "You've completed {{count}} visits today. Keep up the excellent work!",
       "startYourDay": "Start Your Day",
       "noVisitsToday": "No visits recorded today. Check your recommended customers below.",
       "increaseActivity": "Increase Activity",
       "visitFrequencyBelowTarget": "Your visit frequency is below target. Aim for at least 2-3 visits per day.",
       "highSuccessRate": "High Success Rate",
-      "excellentConversionRate": "{rate}% of your visits are successful. Excellent conversion rate!",
-      "notVisitedInDays": "Not visited in over {days} days - follow-up recommended",
+      "excellentConversionRate": "{{rate}}% of your visits are successful. Excellent conversion rate!",
+      "notVisitedInDays": "Not visited in over {{days}} days - follow-up recommended",
     }
   },
   ar: {
@@ -354,8 +417,18 @@ const resources = {
       // Common
       "submit": "إرسال",
       "cancel": "إلغاء",
+      "ok": "موافق",
       "save": "حفظ",
       "delete": "حذف",
+      "confirmDelete": "هل أنت متأكد من أنك تريد حذف هذا؟",
+      "confirmDeleteVisit": "هل أنت متأكد من أنك تريد حذف هذه الزيارة؟",
+      "confirmDeleteProduct": "هل أنت متأكد من أنك تريد حذف هذا المنتج؟",
+      "confirmDeleteSalesman": "هل أنت متأكد من أنك تريد حذف هذا البائع؟",
+      "confirmDeleteCustomer": "هل أنت متأكد من أنك تريد حذف هذا العميل؟",
+      "confirmDeleteTarget": "هل أنت متأكد من أنك تريد حذف هذا الهدف؟",
+      "confirmDeletePlant": "هل أنت متأكد من أنك تريد حذف هذه الشركة؟",
+      "deleteSuccess": "تم الحذف بنجاح",
+      "deleteFailed": "فشل الحذف",
       "edit": "تعديل",
       "view": "عرض",
       "close": "إغلاق",
@@ -363,6 +436,7 @@ const resources = {
       "filter": "تصفية",
       "export": "تصدير",
       "refresh": "تحديث",
+      "loadMore": "تحميل المزيد",
       "loading": "جار التحميل...",
       "noData": "لا توجد بيانات",
       "success": "نجح",
@@ -383,6 +457,10 @@ const resources = {
       "thisMonth": "هذا الشهر",
       "lastMonth": "الشهر الماضي",
       "custom": "مخصص",
+      "adminPortal": "بوابة الإدارة",
+      "settings": "الإعدادات",
+      "enableArabicTranslation": "تفعيل الترجمة العربية",
+      "allowUsersToSwitchLanguage": "السماح للمستخدمين بالتبديل بين الإنجليزية والعربية. قم بتعطيل هذا للشركات التي تستخدم الإنجليزية فقط.",
       
       // Dashboard
       "dashboard": "لوحة التحكم",
@@ -421,6 +499,8 @@ const resources = {
       "excellent": "ممتاز",
       "good": "جيد",
       "avg": "متوسط",
+      "loadingData": "جاري تحميل بيانات لوحة التحكم...",
+      "dashboardReady": "لوحة التحكم جاهزة! أضف مندوبين وأنشئ زيارات لرؤية مقاييس الأداء هنا.",
       "addProduct": "إضافة منتج",
       "editProduct": "تعديل منتج",
       "addCustomer": "إضافة عميل",
@@ -498,6 +578,15 @@ const resources = {
       "lastMeeting": "آخر اجتماع",
       "status": "الحالة",
       
+      // Company
+      "plants": "الشركات",
+      "plantsManagement": "إدارة الشركات",
+      "plantCode": "رمز الشركة",
+      "plantName": "اسم الشركة",
+      "addPlant": "إضافة شركة",
+      "editPlant": "تعديل الشركة",
+      "addNewPlant": "إضافة شركة جديدة",
+      
       // Visit
       "visit": "الزيارة",
       "visits": "الزيارات",
@@ -566,6 +655,8 @@ const resources = {
       "selectAllThatApply": "(حدد كل ما ينطبق)",
       "selectAllDiscussed": "(حدد كل ما تم مناقشته)",
       "remarksNotes": "ملاحظات / تعليقات",
+      "remarksPlaceholder": "أي ملاحظات إضافية حول هذه الزيارة...",
+      "canBeSwitchedQuestion": "هل يمكن التبديل؟",
       "photoOfLocation": "صورة الموقع/المكتب",
       
       // Offline
@@ -624,7 +715,15 @@ const resources = {
       "meeting": "اجتماع",
       "sendSample": "إرسال عينة",
       "visitAgainWithManagement": "زيارة مرة أخرى مع الإدارة",
-      "inviteToFactory": "دعوة للمصنع",
+      "commercialWIP": "العمل التجاري قيد التنفيذ",
+      "closedOrder": "طلب مغلق",
+      
+      // Bilingual Fields
+      "bilingualInput": "إدخال ثنائي اللغة",
+      "english": "الإنجليزية",
+      "arabic": "العربية",
+      "atLeastOneLanguageRequired": "مطلوب لغة واحدة على الأقل",
+      "pressTabToTranslate": "اضغط Tab للترجمة التلقائية إلى اللغة الأخرى",
       "currentlyWithCompetitor": "حالياً مع منافس (إن وجد)",
       "additionalNotes": "ملاحظات أو مشاهدات إضافية",
       "takePhoto": "التقط صورة",
@@ -633,24 +732,51 @@ const resources = {
       "imageVerificationFailed": "فشل التحقق من الصورة!",
       "score": "النتيجة",
       "removeAndRetake": "إزالة وإعادة الالتقاط",
+      "enterOrderValue": "أدخل قيمة الطلب",
+      "orderValueRupees": "قيمة الطلب",
+      "enterOrderValueHelper": "أدخل قيمة الطلب بالروبية",
+      "pleaseEnterValidOrderValue": "الرجاء إدخال قيمة طلب صحيحة",
       "refreshGPS": "تحديث GPS",
+      "gps": "GPS",
+      "visitPhoto": "صورة الزيارة",
+      "loadPhoto": "تحميل الصورة",
+      "visitLocation": "موقع الزيارة",
+      "clickImageToViewFullSize": "انقر على الصورة لعرض الحجم الكامل",
+      "visitDate": "تاريخ الزيارة",
+      "clientsVisitedBy": "العملاء الذين زارهم",
+      "noClientsFound": "لم يتم العثور على عملاء",
       "getting": "جاري الحصول...",
       "submitting": "جاري الإرسال...",
       "submitVisit": "إرسال الزيارة",
+      "viewClients": "عرض العملاء",
+      "startingMigration": "بدء الترحيل...",
+      "foundVisitsToMigrate": "تم العثور على {count} زيارة للترحيل...",
+      "processingVisit": "معالجة {current} من {total}...",
+      "migrationComplete": "اكتمل الترحيل! نجح: {success}، فشل: {failed}",
+      "migrationFailed": "فشل الترحيل. الرجاء المحاولة مرة أخرى.",
+      "noTenantSelected": "لم يتم تحديد مستأجر",
+      "noDataToExport": "لا توجد بيانات للتصدير",
+      "exportToExcel": "تصدير إلى Excel",
+      "filterByCompany": "تصفية حسب الشركة",
+      "filterBySalesman": "تصفية حسب مندوب المبيعات",
+      "allCompanies": "جميع الشركات",
+      "allSalesmen": "جميع مندوبي المبيعات",
+      "clearFilters": "مسح التصفية",
+      "confirmGpsToAddressConversion": "سيتم تحويل جميع إحداثيات GPS إلى عناوين فعلية. قد يستغرق هذا بضع دقائق. هل تريد المتابعة؟",
       
       // AI Insights Component
       "recommendedCustomersToVisit": "العملاء الموصى بزيارتهم",
       "noInsightsYet": "لا توجد رؤى متاحة بعد. أكمل المزيد من الزيارات للحصول على توصيات مخصصة.",
       "greatJob": "عمل رائع! تمت زيارة جميع عملائك مؤخراً.",
       "greatPerformance": "أداء رائع!",
-      "visitsCompletedToday": "لقد أكملت {count} زيارة اليوم. استمر في عملك الممتاز!",
+      "visitsCompletedToday": "لقد أكملت {{count}} زيارة اليوم. استمر في عملك الممتاز!",
       "startYourDay": "ابدأ يومك",
       "noVisitsToday": "لم يتم تسجيل زيارات اليوم. تحقق من العملاء الموصى بهم أدناه.",
       "increaseActivity": "زيادة النشاط",
       "visitFrequencyBelowTarget": "معدل زياراتك أقل من المستهدف. اهدف لـ 2-3 زيارات على الأقل يومياً.",
       "highSuccessRate": "معدل نجاح عالي",
-      "excellentConversionRate": "{rate}% من زياراتك ناجحة. معدل تحويل ممتاز!",
-      "notVisitedInDays": "لم تتم الزيارة منذ أكثر من {days} أيام - يوصى بالمتابعة",
+      "excellentConversionRate": "{{rate}}% من زياراتك ناجحة. معدل تحويل ممتاز!",
+      "notVisitedInDays": "لم تتم الزيارة منذ أكثر من {{days}} أيام - يوصى بالمتابعة",
     }
   }
 };
@@ -660,15 +786,23 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: 'en',
+    fallbackLng: 'ar', // Default to Arabic
+    lng: localStorage.getItem('i18nextLng') || 'ar', // Explicitly set language from localStorage or default to Arabic
     supportedLngs: ['en', 'ar'],
     interpolation: {
       escapeValue: false
     },
     detection: {
-      order: ['localStorage', 'navigator'],
-      caches: ['localStorage']
+      order: ['localStorage', 'querystring', 'navigator'],
+      lookupLocalStorage: 'i18nextLng',
+      caches: ['localStorage'],
+      cookieMinutes: 10080 // 7 days
     }
   });
+
+// Ensure the document direction is set on load
+const currentLang = i18n.language || localStorage.getItem('i18nextLng') || 'ar';
+document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+document.documentElement.lang = currentLang;
 
 export default i18n;
