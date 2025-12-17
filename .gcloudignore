@@ -1,7 +1,16 @@
-# MINIMAL DEPLOYMENT - Exclude everything except dist-react and app.yaml
+# MINIMAL DEPLOYMENT - Exclude everything except necessary files
 *
 
-# Only include these:
+# Include main app files
 !app.yaml
 !dist-react/
 !dist-react/**
+
+# Include WhatsApp cron service files
+!app-whatsapp-cron.yaml
+!cron-server.js
+!package.json
+!package-lock.json
+
+# Let App Engine handle node_modules installation via package.json
+# Don't upload node_modules - it's huge and causes deployment issues

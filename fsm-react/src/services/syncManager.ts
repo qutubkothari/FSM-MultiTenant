@@ -6,7 +6,6 @@
 import { offlineStorage, OfflineVisit } from './offlineStorage';
 import { supabase } from './supabase';
 import { useTenantStore } from '../store/tenantStore';
-import { autoTranslateBilingual } from './translationService';
 
 class SyncManager {
   private isSyncing = false;
@@ -248,36 +247,9 @@ class SyncManager {
     let remarks = visitData.remarks;
     let remarksAr = visitData.remarks_ar;
 
-    if (customerName && !customerNameAr) {
-      try {
-        const translation = await autoTranslateBilingual(customerName);
-        customerName = translation.english;
-        customerNameAr = translation.arabic;
-      } catch (error) {
-        console.error('Failed to translate customer name:', error);
-        // Use original if translation fails
-      }
-    }
-
-    if (contactPerson && !contactPersonAr) {
-      try {
-        const translation = await autoTranslateBilingual(contactPerson);
-        contactPerson = translation.english;
-        contactPersonAr = translation.arabic;
-      } catch (error) {
-        console.error('Failed to translate contact person:', error);
-      }
-    }
-
-    if (remarks && !remarksAr) {
-      try {
-        const translation = await autoTranslateBilingual(remarks);
-        remarks = translation.english;
-        remarksAr = translation.arabic;
-      } catch (error) {
-        console.error('Failed to translate remarks:', error);
-      }
-    }
+    // Skip translation for faster sync - can be translated later if needed
+    // Translation takes 2-3 seconds per field which makes submit feel slow
+    console.log('⚡ Skipping translation during sync for faster performance');
 
     // Insert visit into database with proper column names
     const { data, error } = await supabase
@@ -286,9 +258,11 @@ class SyncManager {
         salesman_id: salesmanId,
         customer_name: customerName,
         customer_name_ar: customerNameAr,
+        customer_email: visitData.customer_email || null,
         contact_person: contactPerson,
         contact_person_ar: contactPersonAr,
         visit_type: visitData.visit_type,
+        customer_type: visitData.customer_type || null,
         meeting_type: visitData.meeting_type,
         products_discussed: visitData.products_discussed || [],
         next_action: visitData.next_action || null,
@@ -305,6 +279,7 @@ class SyncManager {
         visit_image: imageDataUrl,
         order_value: visitData.order_value || 0,
         plant: visitData.plant || [],
+        status: 'completed',
         tenant_id: tenantId,
       })
       .select()

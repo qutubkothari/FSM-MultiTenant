@@ -93,6 +93,7 @@ export interface SalesmanTarget {
   month: number;
   year: number;
   visits_per_month: number;
+  working_days?: number;
   visits_per_day: number;
   new_visits_per_month: number;
   repeat_visits_per_month: number;

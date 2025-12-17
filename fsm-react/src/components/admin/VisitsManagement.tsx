@@ -63,6 +63,7 @@ export default function VisitsManagement() {
   const [selectedSalesmanName, setSelectedSalesmanName] = useState('');
   const [filterCompany, setFilterCompany] = useState<string>('all');
   const [filterSalesman, setFilterSalesman] = useState<string>('all');
+  const [filterCustomerType, setFilterCustomerType] = useState<string>('all');
   const [salesmen, setSalesmen] = useState<any[]>([]);
   const [exporting, setExporting] = useState(false);
 
@@ -118,7 +119,7 @@ export default function VisitsManagement() {
       const { data } = await supabase
         .from('visits')
         .select(`
-          id, customer_name, customer_name_ar, contact_person_ar, remarks_ar, 
+          id, customer_name, customer_name_ar, customer_email, customer_type, contact_person_ar, remarks_ar, 
           salesman_name, meeting_type, visit_type, created_at, location_address, status, plant,
           salesmen!visits_salesman_id_fkey(name, name_ar)
         `)
@@ -487,6 +488,22 @@ export default function VisitsManagement() {
       ),
     },
     {
+      field: 'customer_type',
+      headerName: t('customerType'),
+      width: 140,
+      renderCell: (params: GridRenderCellParams) => {
+        if (!params.value) return null;
+        return (
+          <Chip
+            label={params.value === 'new' ? t('newCustomer') : t('repeatCustomer')}
+            size="small"
+            color={params.value === 'new' ? 'success' : 'info'}
+            sx={{ textTransform: 'capitalize', fontWeight: 500 }}
+          />
+        );
+      },
+    },
+    {
       field: 'customer_phone',
       headerName: t('phone'),
       width: 130,
@@ -569,6 +586,7 @@ export default function VisitsManagement() {
       }
     }
     if (filterSalesman !== 'all' && visit.salesman_name !== filterSalesman) return false;
+    if (filterCustomerType !== 'all' && visit.customer_type !== filterCustomerType) return false;
     return true;
   });
 
@@ -647,13 +665,27 @@ export default function VisitsManagement() {
           </Select>
         </FormControl>
 
-        {(filterCompany !== 'all' || filterSalesman !== 'all') && (
+        <FormControl size="small" sx={{ minWidth: 200 }}>
+          <InputLabel>{t('customerType')}</InputLabel>
+          <Select
+            value={filterCustomerType}
+            onChange={(e) => setFilterCustomerType(e.target.value)}
+            label={t('customerType')}
+          >
+            <MenuItem value="all">{t('all')}</MenuItem>
+            <MenuItem value="new">{t('newCustomer')}</MenuItem>
+            <MenuItem value="repeat">{t('repeatCustomer')}</MenuItem>
+          </Select>
+        </FormControl>
+
+        {(filterCompany !== 'all' || filterSalesman !== 'all' || filterCustomerType !== 'all') && (
           <Button
             size="small"
             variant="outlined"
             onClick={() => {
               setFilterCompany('all');
               setFilterSalesman('all');
+              setFilterCustomerType('all');
             }}
           >
             {t('clearFilters')}
@@ -745,6 +777,30 @@ export default function VisitsManagement() {
                   <Typography variant="body1" gutterBottom>
                     {selectedVisit.customer_phone || 'N/A'}
                   </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    {t('clientEmail')}
+                  </Typography>
+                  <Typography variant="body1" gutterBottom>
+                    {selectedVisit.customer_email || 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    {t('customerType')}
+                  </Typography>
+                  <Box sx={{ mt: 0.5 }}>
+                    {selectedVisit.customer_type ? (
+                      <Chip
+                        label={t(selectedVisit.customer_type === 'new' ? 'newCustomer' : 'repeatCustomer')}
+                        size="small"
+                        color={selectedVisit.customer_type === 'new' ? 'success' : 'info'}
+                      />
+                    ) : (
+                      <Typography variant="body1" gutterBottom>N/A</Typography>
+                    )}
+                  </Box>
                 </Grid>
                 <Grid item xs={12}>
                   <Divider sx={{ my: 1 }} />

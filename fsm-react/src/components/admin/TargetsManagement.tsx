@@ -60,6 +60,7 @@ export default function TargetsManagement() {
     month: currentMonth,
     year: currentYear,
     visits_per_month: 0,
+    working_days: 25,
     visits_per_day: 0,
     new_visits_per_month: 0,
     repeat_visits_per_month: 0,
@@ -67,6 +68,20 @@ export default function TargetsManagement() {
     order_value_per_month: 0,
     product_targets: [] as ProductTarget[],
   });
+
+  const calculateVisitsPerDay = (visitsPerMonth: number, workingDays: number) => {
+    const safeWorkingDays = Number.isFinite(workingDays) && workingDays > 0 ? workingDays : 25;
+    if (visitsPerMonth <= 0) return 0;
+    return Number((visitsPerMonth / safeWorkingDays).toFixed(2));
+  };
+
+  useEffect(() => {
+    const computed = calculateVisitsPerDay(formData.visits_per_month, formData.working_days);
+    if (computed !== formData.visits_per_day) {
+      setFormData((prev) => ({ ...prev, visits_per_day: computed }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.visits_per_month, formData.working_days]);
 
   useEffect(() => {
     if (tenant?.id) {
@@ -147,12 +162,15 @@ export default function TargetsManagement() {
   const handleOpenDialog = (target?: SalesmanTarget) => {
     if (target) {
       setEditingTarget(target);
+      const workingDays = (target as any).working_days ?? 25;
+      const computedVisitsPerDay = calculateVisitsPerDay(target.visits_per_month, workingDays);
       setFormData({
         salesman_id: target.salesman_id,
         month: target.month,
         year: target.year,
         visits_per_month: target.visits_per_month,
-        visits_per_day: target.visits_per_day,
+        working_days: workingDays,
+        visits_per_day: computedVisitsPerDay,
         new_visits_per_month: target.new_visits_per_month,
         repeat_visits_per_month: target.repeat_visits_per_month,
         orders_per_month: target.orders_per_month,
@@ -161,12 +179,14 @@ export default function TargetsManagement() {
       });
     } else {
       setEditingTarget(null);
+      const computedVisitsPerDay = calculateVisitsPerDay(0, 25);
       setFormData({
         salesman_id: '',
         month: currentMonth,
         year: currentYear,
         visits_per_month: 0,
-        visits_per_day: 0,
+        working_days: 25,
+        visits_per_day: computedVisitsPerDay,
         new_visits_per_month: 0,
         repeat_visits_per_month: 0,
         orders_per_month: 0,
@@ -201,6 +221,7 @@ export default function TargetsManagement() {
         month: formData.month,
         year: formData.year,
         visits_per_month: formData.visits_per_month,
+        working_days: formData.working_days,
         visits_per_day: formData.visits_per_day,
         new_visits_per_month: formData.new_visits_per_month,
         repeat_visits_per_month: formData.repeat_visits_per_month,
@@ -215,25 +236,80 @@ export default function TargetsManagement() {
         const { error } = await supabase
           .from('salesman_targets')
           .update(targetData)
-          .eq('id', editingTarget.id);
+          .eq('id', editingTarget.id)
+          .eq('tenant_id', tenantId);
         
         if (error) throw error;
       } else {
-        // Insert or update using upsert (handles conflict)
-        const { error } = await supabase
+        // Multi-tenant safe: find existing target, then update/insert.
+        // Avoids relying on a specific UNIQUE constraint for upsert.
+        const { data: existing, error: findError } = await supabase
           .from('salesman_targets')
-          .upsert(targetData, {
-            onConflict: 'salesman_id,month,year'
-          });
-        
-        if (error) throw error;
+          .select('id, deleted_at')
+          .eq('tenant_id', tenantId)
+          .eq('salesman_id', formData.salesman_id)
+          .eq('month', formData.month)
+          .eq('year', formData.year)
+          .limit(1)
+          .maybeSingle();
+
+        if (findError) throw findError;
+
+        if (existing?.id) {
+          const { error: updateError } = await supabase
+            .from('salesman_targets')
+            .update({ ...targetData, deleted_at: null })
+            .eq('id', existing.id)
+            .eq('tenant_id', tenantId);
+          if (updateError) throw updateError;
+        } else {
+          const { error: insertError } = await supabase
+            .from('salesman_targets')
+            .insert(targetData);
+
+          // Some databases still have a UNIQUE constraint on (salesman_id, month, year)
+          // (without tenant_id). In that case, treat duplicate insert as an update.
+          if (insertError) {
+            if (insertError.code === '23505') {
+              const { data: existingAnyTenant, error: findAnyError } = await supabase
+                .from('salesman_targets')
+                .select('id, tenant_id, deleted_at')
+                .eq('tenant_id', tenantId)
+                .eq('salesman_id', formData.salesman_id)
+                .eq('month', formData.month)
+                .eq('year', formData.year)
+                .limit(1)
+                .maybeSingle();
+
+              if (findAnyError) throw findAnyError;
+              if (!existingAnyTenant?.id) throw insertError;
+
+              const { error: updateOnDupError } = await supabase
+                .from('salesman_targets')
+                .update({ ...targetData, deleted_at: null })
+                .eq('id', existingAnyTenant.id)
+                .eq('tenant_id', tenantId);
+
+              if (updateOnDupError) throw updateOnDupError;
+            } else {
+              throw insertError;
+            }
+          }
+        }
       }
 
       await loadData();
       handleCloseDialog();
     } catch (err: any) {
       console.error('Error saving target:', err);
-      setError(err.message || 'Failed to save target');
+      const message =
+        err?.message ||
+        err?.error_description ||
+        (typeof err === 'string' ? err : '') ||
+        'Failed to save target';
+      const code = err?.code ? ` (Code: ${err.code})` : '';
+      const details = err?.details ? ` Details: ${err.details}` : '';
+      setError(`${message}${code}${details}`);
     }
   };
 
@@ -478,13 +554,24 @@ export default function TargetsManagement() {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
+                label={t('workingDays')}
+                type="number"
+                inputProps={{ min: 1, step: 1 }}
+                value={formData.working_days}
+                onChange={(e) =>
+                  setFormData({ ...formData, working_days: Number(e.target.value) })
+                }
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
                 label={t('visitsPerDay')}
                 type="number"
                 inputProps={{ step: 0.1 }}
                 value={formData.visits_per_day}
-                onChange={(e) =>
-                  setFormData({ ...formData, visits_per_day: Number(e.target.value) })
-                }
+                disabled
               />
             </Grid>
 

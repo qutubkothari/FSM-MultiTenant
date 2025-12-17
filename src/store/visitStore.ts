@@ -4,6 +4,7 @@ import LocationService from '@/services/location.service';
 import OfflineSyncService from '@/services/offline-sync.service';
 import { Visit, VisitFormData } from '@/types/database.types';
 import { useAuthStore } from './authStore';
+import { useSyncStore } from './syncStore';
 
 interface VisitState {
   visits: Visit[];
@@ -66,7 +67,7 @@ export const useVisitStore = create<VisitState>((set, get) => ({
       const { visitStartTime, currentVisit } = get();
       
       // Prepare visit data
-      const visitData: Omit<Visit, 'id' | 'created_at' | 'updated_at'> = {
+      const visitData: Omit<Visit, 'id' | 'created_at' | 'updated_at' | 'synced'> = {
         salesman_id: salesman.id,
         customer_id: customerId || '',
         customer_name: formData.customer_name,
@@ -83,25 +84,23 @@ export const useVisitStore = create<VisitState>((set, get) => ({
         gps_longitude: location.longitude,
         time_in: visitStartTime || currentVisit?.time_in || new Date().toISOString(),
         time_out: currentVisit?.time_out,
-        synced: false,
       };
 
       // Try to create visit online, fallback to offline queue
       try {
-        const visit = await SupabaseService.createVisit(visitData);
-        if (visit) {
-          set(state => ({
-            visits: [visit, ...state.visits],
-            isCreatingVisit: false,
-            currentVisit: null,
-            visitStartTime: null
-          }));
-          return true;
-        }
+        const visit = await SupabaseService.createVisit({ ...visitData, synced: true });
+        set(state => ({
+          visits: [visit, ...state.visits],
+          isCreatingVisit: false,
+          currentVisit: null,
+          visitStartTime: null
+        }));
+        return true;
       } catch (onlineError) {
         console.log('Saving offline:', onlineError);
         // Save to offline queue
         await OfflineSyncService.addToQueue(visitData);
+        await useSyncStore.getState().updatePendingCount();
         set({ 
           isCreatingVisit: false,
           currentVisit: null,
@@ -109,12 +108,6 @@ export const useVisitStore = create<VisitState>((set, get) => ({
         });
         return true;
       }
-
-      set({ 
-        error: 'Failed to create visit',
-        isCreatingVisit: false 
-      });
-      return false;
       
     } catch (error) {
       set({ 

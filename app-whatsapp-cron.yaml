@@ -1,0 +1,31 @@
+# App Engine configuration for WhatsApp Summary Automation
+runtime: nodejs20
+
+service: whatsapp-cron
+
+instance_class: F1
+
+entrypoint: node cron-server.js
+
+automatic_scaling:
+  min_instances: 0
+  max_instances: 1
+  target_cpu_utilization: 0.65
+
+env_variables:
+  SUPABASE_URL: "https://ktvrffbccgxtaststlhw.supabase.co"
+  SUPABASE_ANON_KEY: "sb_publishable_sNhpQ5W6i_KuIPcT6bjjnw_BcJwPljV"
+  SAK_BASE_URL: "http://wapi.saksolution.com"
+  SAK_SESSION_ID: "5f4ebac4-0527-407b-9ca1-6f7905664f23"
+  SAK_API_KEY: "9b55751c94e728d824d19a60b4082fd9e45591c1141c1a185f3845fbe9f65f9d"
+  NODE_ENV: "production"
+
+handlers:
+- url: /cron/.*
+  script: auto
+  secure: always
+  login: admin
+
+- url: /.*
+  script: auto
+  secure: always

@@ -79,15 +79,15 @@ class SupabaseService {
   }
 
   async getOrCreateCustomer(name: string, contactPerson?: string): Promise<Customer | null> {
-    // Try to find existing customer
+    // Try to find existing customer - use limit(1) instead of single() to avoid timeout
     const { data: existing } = await this.client
       .from('customers')
       .select('*')
       .ilike('name', name)
-      .single();
+      .limit(1);
 
-    if (existing) {
-      return existing;
+    if (existing && existing.length > 0) {
+      return existing[0];
     }
 
     // Create new customer
@@ -110,16 +110,26 @@ class SupabaseService {
   }
 
   // Visit Operations
-  async createVisit(visit: Omit<Visit, 'id' | 'created_at' | 'updated_at'>): Promise<Visit | null> {
-    const { data, error } = await this.client
+  async createVisit(visit: Partial<Visit>): Promise<Visit> {
+    // Add 10-second timeout to prevent endless waiting
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Request timeout - server not responding')), 10000)
+    );
+
+    const insertPromise = this.client
       .from('visits')
       .insert(visit)
       .select()
       .single();
 
+    const { data, error } = await Promise.race([insertPromise, timeoutPromise]);
+
     if (error) {
       console.error('Error creating visit:', error);
-      return null;
+      throw error;
+    }
+    if (!data) {
+      throw new Error('Failed to create visit');
     }
     return data;
   }

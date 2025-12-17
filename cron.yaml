@@ -1,0 +1,12 @@
+cron:
+- description: "Daily WhatsApp Summary (IST tenants)"
+  url: /cron/send-daily-summaries?tz=Asia/Kolkata
+  schedule: every day 18:00
+  timezone: Asia/Kolkata
+  target: whatsapp-cron
+
+- description: "Daily WhatsApp Summary (Cairo tenants)"
+  url: /cron/send-daily-summaries?tz=Africa/Cairo
+  schedule: every day 18:00
+  timezone: Africa/Cairo
+  target: whatsapp-cron

@@ -8,6 +8,11 @@ import {
   CircularProgress,
   IconButton,
   Button,
+  Tabs,
+  Tab,
+  FormControl,
+  InputLabel,
+  Select,
   Menu,
   MenuItem,
   Dialog,
@@ -27,7 +32,7 @@ import {
 } from '@mui/icons-material';
 import { useAuthStore } from '../../store/authStore';
 import { visitService, supabase } from '../../services/supabase';
-import { format } from 'date-fns';
+import { addDays, format, isWithinInterval, startOfDay } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { getBilingualDisplay } from '../../utils/arabicUtils';
 import { plantService, Plant } from '../../services/plantService';
@@ -47,7 +52,40 @@ export default function VisitHistory() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [tab, setTab] = useState(0);
+  const [followUpFilter, setFollowUpFilter] = useState<'all' | 'overdue' | 'today' | 'next7' | 'next30'>('all');
   const PAGE_SIZE = 10;
+
+  const getOpenMeetings = (list: any[]) => {
+    return list.filter((v) => {
+      const hasFollowUpDate = !!v.next_action_date;
+      const isCancelled = v.status === 'cancelled';
+      const hasMeetingNextAction = Array.isArray(v.next_action)
+        ? v.next_action.includes('meeting')
+        : v.next_action === 'meeting';
+      return hasFollowUpDate && hasMeetingNextAction && !isCancelled;
+    });
+  };
+
+  const applyFollowUpFilter = (list: any[]) => {
+    const today = startOfDay(new Date());
+
+    return list.filter((v) => {
+      if (!v.next_action_date) return false;
+      const followUpDate = startOfDay(new Date(v.next_action_date));
+
+      if (followUpFilter === 'all') return true;
+      if (followUpFilter === 'overdue') return followUpDate < today;
+      if (followUpFilter === 'today') return followUpDate.getTime() === today.getTime();
+      if (followUpFilter === 'next7') {
+        return isWithinInterval(followUpDate, { start: today, end: addDays(today, 7) });
+      }
+      if (followUpFilter === 'next30') {
+        return isWithinInterval(followUpDate, { start: today, end: addDays(today, 30) });
+      }
+      return true;
+    });
+  };
 
   useEffect(() => {
     loadVisits(true);
@@ -153,6 +191,7 @@ export default function VisitHistory() {
         .from('products')
         .select('*')
         .eq('tenant_id', tenant.id);
+      console.log('📦 Loaded products:', data);
       setProducts(data || []);
     } catch (error) {
       console.error('Error loading products:', error);
@@ -185,6 +224,11 @@ export default function VisitHistory() {
   };
 
   const handleViewDetails = (visit: any) => {
+    console.log('👁️ Opening visit details:', {
+      visit_id: visit.id,
+      products_discussed: visit.products_discussed,
+      plant: visit.plant,
+    });
     setSelectedVisit(visit);
     setDetailsOpen(true);
   };
@@ -213,7 +257,32 @@ export default function VisitHistory() {
         </IconButton>
       </Box>
 
-      {visits.length === 0 ? (
+      <Tabs value={tab} onChange={(_e, value) => setTab(value)} sx={{ mb: 2 }}>
+        <Tab label={t('visitHistory')} />
+        <Tab label={t('openMeetings')} />
+      </Tabs>
+
+      {tab === 1 && (
+        <FormControl fullWidth margin="dense" sx={{ mb: 2 }}>
+          <InputLabel>{t('followUpFilter')}</InputLabel>
+          <Select
+            value={followUpFilter}
+            label={t('followUpFilter')}
+            onChange={(e) => setFollowUpFilter(e.target.value as any)}
+          >
+            <MenuItem value="all">{t('followUpAll')}</MenuItem>
+            <MenuItem value="overdue">{t('followUpOverdue')}</MenuItem>
+            <MenuItem value="today">{t('followUpToday')}</MenuItem>
+            <MenuItem value="next7">{t('followUpNext7Days')}</MenuItem>
+            <MenuItem value="next30">{t('followUpNext30Days')}</MenuItem>
+          </Select>
+        </FormControl>
+      )}
+
+      {(() => {
+        const displayList = tab === 1 ? applyFollowUpFilter(getOpenMeetings(visits)) : visits;
+
+        return displayList.length === 0 ? (
         <Card>
           <CardContent>
             <Typography variant="body1" color="text.secondary" textAlign="center">
@@ -221,9 +290,9 @@ export default function VisitHistory() {
             </Typography>
           </CardContent>
         </Card>
-      ) : (
+        ) : (
         <Box display="flex" flexDirection="column" gap={2}>
-          {visits.map((visit) => (
+          {displayList.map((visit) => (
             <Card key={visit.id}>
               <CardContent>
                 <Box display="flex" justifyContent="space-between" alignItems="start" mb={1}>
@@ -263,6 +332,12 @@ export default function VisitHistory() {
                   📱 {visit.customer_phone}
                 </Typography>
 
+                {visit.customer_email && (
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    📧 {visit.customer_email}
+                  </Typography>
+                )}
+
                 {visit.customer_address && (
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     📍 {visit.customer_address}
@@ -275,6 +350,21 @@ export default function VisitHistory() {
                     size="small"
                     sx={{ textTransform: 'capitalize' }}
                   />
+                  {(visit as any).customer_type && (
+                    <Chip
+                      label={t((visit as any).customer_type === 'new' ? 'newCustomer' : 'repeatCustomer')}
+                      size="small"
+                      color={(visit as any).customer_type === 'new' ? 'success' : 'info'}
+                      sx={{ textTransform: 'capitalize' }}
+                    />
+                  )}
+                  {tab === 1 && visit.next_action_date && (
+                    <Chip
+                      label={`${t('followUpDate')}: ${format(new Date(visit.next_action_date), 'MMM dd, yyyy')}`}
+                      size="small"
+                      color="warning"
+                    />
+                  )}
                   {visit.order_value > 0 && (
                     <Chip
                       label={`${t('order')}: ${tenant?.currencySymbol || '$'}${visit.order_value.toLocaleString()}`}
@@ -339,7 +429,8 @@ export default function VisitHistory() {
             </Card>
           ))}
         </Box>
-      )}
+        );
+      })()}
 
       {/* Load More Button */}
       {hasMore && visits.length > 0 && (
@@ -397,6 +488,24 @@ export default function VisitHistory() {
                       selectedVisit.customer_name_ar,
                       i18n.language === 'ar'
                     ) || 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    {t('clientEmail')}
+                  </Typography>
+                  <Typography variant="body1" gutterBottom>
+                    {selectedVisit.customer_email || 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    {t('customerType')}
+                  </Typography>
+                  <Typography variant="body1" gutterBottom>
+                    {(selectedVisit as any).customer_type
+                      ? t((selectedVisit as any).customer_type === 'new' ? 'newCustomer' : 'repeatCustomer')
+                      : 'N/A'}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -554,15 +663,20 @@ export default function VisitHistory() {
                 {selectedVisit.plant && Array.isArray(selectedVisit.plant) && selectedVisit.plant.length > 0 && (
                   <Grid item xs={12}>
                     <Typography variant="subtitle2" color="text.secondary">
-                      {t('plants')}
+                      {t('company')}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>
                       {selectedVisit.plant.map((plantId: string) => {
                         const plant = plants.find(p => p.id === plantId);
+                        const plantName = plant ? getBilingualDisplay(
+                          plant.plant_name,
+                          plant.plant_name_ar,
+                          i18n.language === 'ar'
+                        ) : plantId;
                         return (
                           <Chip
                             key={plantId}
-                            label={plant ? `${plant.plant_name} (${plant.plant_code})` : plantId}
+                            label={plant ? `${plantName} (${plant.plant_code})` : plantId}
                             size="small"
                             color="primary"
                             variant="outlined"

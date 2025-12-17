@@ -71,8 +71,10 @@ export default function NewVisitForm({ onSuccess }: Props) {
   
   const [formData, setFormData] = useState({
     customer_name: '',
+    customer_email: '',
     contact_person: '',
     visit_type: 'personal' as 'personal' | 'telephone',
+    customer_type: '' as '' | 'new' | 'repeat',
     meeting_type: [] as string[],
     products_discussed: [] as string[],
     next_action: [] as string[],
@@ -294,7 +296,7 @@ export default function NewVisitForm({ onSuccess }: Props) {
         () => resolve(),
         {
           enableHighAccuracy: true,
-          timeout: 8000,
+          timeout: 3000, // Reduced from 8s to 3s for faster submission
           maximumAge: 0,
         }
       );
@@ -506,8 +508,13 @@ export default function NewVisitForm({ onSuccess }: Props) {
     e.preventDefault();
     setError('');
 
+    console.log('⏱️ Submit started at:', new Date().toISOString());
+
     // Last-chance quiet location attempt so we capture coords if possible
+    const gpsStart = Date.now();
     await tryGetLocationQuietly();
+    const gpsTime = Date.now() - gpsStart;
+    console.log(`⏱️ GPS attempt took ${gpsTime}ms`);
 
     const customerName = (formData.customer_name || '').trim();
     const meetingTypesSelected = Array.isArray(formData.meeting_type) ? formData.meeting_type : [];
@@ -548,6 +555,7 @@ export default function NewVisitForm({ onSuccess }: Props) {
       if (!isOnline) {
         // OFFLINE MODE: Save to IndexedDB
         console.log('📡 Offline - saving visit to local storage');
+        const offlineStart = Date.now();
         
         // Convert base64 data URL to Blob for IndexedDB storage
         let imageBlob = null;
@@ -570,6 +578,7 @@ export default function NewVisitForm({ onSuccess }: Props) {
         const offlineVisitData = {
           // Don't store salesman_id - will be looked up by phone during sync
           customer_name: formData.customer_name,
+          customer_email: (formData.customer_email || '').trim() || null,
           customer_name_ar: '', // Will be translated during sync
           contact_person: formData.contact_person || null,
           contact_person_ar: '', // Will be translated during sync
@@ -578,6 +587,7 @@ export default function NewVisitForm({ onSuccess }: Props) {
           tenant_id: user?.tenant_id,
           plant: formData.plant,
           visit_type: formData.visit_type,
+          customer_type: formData.customer_type || null,
           meeting_type: formData.meeting_type,
           products_discussed: formData.products_discussed,
           next_action: formData.next_action,
@@ -602,7 +612,13 @@ export default function NewVisitForm({ onSuccess }: Props) {
           phone: user?.phone
         });
 
+        const saveStart = Date.now();
         await offlineStorage.saveVisitOffline(offlineVisitData);
+        const saveTime = Date.now() - saveStart;
+        console.log(`⏱️ IndexedDB save took ${saveTime}ms`);
+        
+        const totalTime = Date.now() - offlineStart;
+        console.log(`⏱️ Total offline save process took ${totalTime}ms`);
         
         setSuccess(true);
         setTimeout(() => {
@@ -673,9 +689,11 @@ export default function NewVisitForm({ onSuccess }: Props) {
         salesman_name: user?.name,
         tenant_id: user?.tenant_id,
         ...formData,
+        customer_type: formData.customer_type || null,
         // Store both English and Arabic versions
         customer_name: customerTranslation.english,
         customer_name_ar: customerTranslation.arabic,
+        customer_email: (formData.customer_email || '').trim() || null,
         contact_person: contactTranslation.english || null,
         contact_person_ar: contactTranslation.arabic || null,
         remarks: remarksTranslation.english || null,
@@ -753,6 +771,15 @@ export default function NewVisitForm({ onSuccess }: Props) {
               onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
               margin="normal"
               helperText={loadingInsights ? t('loading') : t('typeToAutoFill')}
+            />
+
+            {/* Customer Email (Optional) */}
+            <TextField
+              fullWidth
+              label={t('clientEmail')}
+              value={formData.customer_email}
+              onChange={(e) => setFormData({ ...formData, customer_email: e.target.value })}
+              margin="normal"
             />
 
 
@@ -867,6 +894,32 @@ export default function NewVisitForm({ onSuccess }: Props) {
                   onClick={() => setFormData({ ...formData, visit_type: 'telephone' })}
                   color={formData.visit_type === 'telephone' ? 'secondary' : 'default'}
                   variant={formData.visit_type === 'telephone' ? 'filled' : 'outlined'}
+                  sx={{ flex: 1, height: 50, fontSize: '0.95rem' }}
+                />
+              </Box>
+            </FormControl>
+
+            {/* Customer Type - Optional */}
+            <FormControl component="fieldset" margin="normal" fullWidth>
+              <FormLabel component="legend" sx={{ mb: 1 }}>{t('customerType')} ({t('optional')})</FormLabel>
+              <Box 
+                sx={{ 
+                  display: 'flex', 
+                  gap: 1,
+                }}
+              >
+                <Chip
+                  label={`✨ ${t('newCustomer')}`}
+                  onClick={() => setFormData({ ...formData, customer_type: formData.customer_type === 'new' ? '' : 'new' })}
+                  color={formData.customer_type === 'new' ? 'success' : 'default'}
+                  variant={formData.customer_type === 'new' ? 'filled' : 'outlined'}
+                  sx={{ flex: 1, height: 50, fontSize: '0.95rem' }}
+                />
+                <Chip
+                  label={`🔄 ${t('repeatCustomer')}`}
+                  onClick={() => setFormData({ ...formData, customer_type: formData.customer_type === 'repeat' ? '' : 'repeat' })}
+                  color={formData.customer_type === 'repeat' ? 'info' : 'default'}
+                  variant={formData.customer_type === 'repeat' ? 'filled' : 'outlined'}
                   sx={{ flex: 1, height: 50, fontSize: '0.95rem' }}
                 />
               </Box>

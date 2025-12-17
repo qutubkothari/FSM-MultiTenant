@@ -237,8 +237,18 @@ export default function SalesmenManagement() {
         await supabase.from('salesmen').update(updateData).eq('id', editSalesman.id);
         
         // Update user password if provided
-        if (normalizedPassword && editSalesman.user_id) {
-          await supabase.from('users').update({ password: normalizedPassword }).eq('id', editSalesman.user_id);
+        // Note: Password is stored in plain text in the users table (not using Supabase Auth)
+        if (normalizedPassword) {
+          // Look up user by phone number (salesmen table doesn't have user_id)
+          const { error: passwordError } = await supabase
+            .from('users')
+            .update({ password: normalizedPassword })
+            .eq('phone', normalizedPhone);
+          
+          if (passwordError) {
+            console.error('Password update error:', passwordError);
+            throw passwordError;
+          }
         }
       } else {
         // Validate password for new salesman

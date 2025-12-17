@@ -4,7 +4,7 @@
 		{
 			"label": "Auto Deploy to App Engine",
 			"type": "shell",
-			"command": "gcloud app deploy --quiet",
+			"command": "gcloud app deploy --quiet --project=sak-fsm",
 			"args": [],
 			"isBackground": false,
 			"problemMatcher": [],

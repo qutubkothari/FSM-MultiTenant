@@ -19,10 +19,25 @@ interface HomeScreenProps {
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { salesman, logout } = useAuthStore();
   const { visits, fetchVisits } = useVisitStore();
-  const { pendingCount, lastSyncTime, syncNow, isSyncing } = useSyncStore();
+  const {
+    pendingCount,
+    lastSyncTime,
+    syncNow,
+    isSyncing,
+    updatePendingCount,
+    updateLastSyncTime,
+    startAutoSync,
+    stopAutoSync,
+  } = useSyncStore();
 
   React.useEffect(() => {
     fetchVisits();
+    updatePendingCount();
+    updateLastSyncTime();
+    startAutoSync();
+    return () => {
+      stopAutoSync();
+    };
   }, []);
 
   const handleNewVisit = () => {

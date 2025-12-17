@@ -59,14 +59,16 @@ class LocationService {
   /**
    * Get location with retry logic
    */
-  async getCurrentLocationWithRetry(maxRetries = 3): Promise<LocationCoordinates | null> {
+  async getCurrentLocationWithRetry(maxRetries = 2): Promise<LocationCoordinates | null> {
     for (let i = 0; i < maxRetries; i++) {
       const location = await this.getCurrentLocation();
       if (location) {
         return location;
       }
-      // Wait before retry
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Wait 1 second before retry (reduced from 2s)
+      if (i < maxRetries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
     }
     return null;
   }
