@@ -261,20 +261,24 @@ async function processTenant(tenant, requestMeta) {
     console.log('   ⚠️  Force send enabled (no dedupe lock)');
   }
 
-  // Check if today is a weekend for this tenant
-  if (isWeekend(tenant.weekend_days, tenant.timezone)) {
-    console.log(`   ⏭️  SKIPPED: Weekend day for ${tenant.company_name}`);
-    return { sent: 0, skipped: 0, failed: 0, reason: 'weekend' };
-  }
+  if (!forceSend) {
+    // Check if today is a weekend for this tenant
+    if (isWeekend(tenant.weekend_days, tenant.timezone)) {
+      console.log(`   ⏭️  SKIPPED: Weekend day for ${tenant.company_name}`);
+      return { sent: 0, skipped: 0, failed: 0, reason: 'weekend' };
+    }
 
-  // Check if there are any visits today
-  const hasVisits = await hasVisitsToday(tenant.id, tenantDate);
-  if (!hasVisits) {
-    console.log(`   ⏭️  SKIPPED: No visits recorded today for ${tenant.company_name}`);
-    return { sent: 0, skipped: 0, failed: 0, reason: 'no_visits' };
-  }
+    // Check if there are any visits today
+    const hasVisits = await hasVisitsToday(tenant.id, tenantDate);
+    if (!hasVisits) {
+      console.log(`   ⏭️  SKIPPED: No visits recorded today for ${tenant.company_name}`);
+      return { sent: 0, skipped: 0, failed: 0, reason: 'no_visits' };
+    }
 
-  console.log(`   ✅ Has visits today, sending messages...`);
+    console.log(`   ✅ Has visits today, sending messages...`);
+  } else {
+    console.log('   ⚠️  Force send: bypassing weekend/no-visits checks');
+  }
 
   let sent = 0;
   let failed = 0;
@@ -362,10 +366,7 @@ async function processTenant(tenant, requestMeta) {
   return { sent, skipped: 0, failed };
 }
 
-/**
- * CRON endpoint - triggered by Cloud Scheduler
- */
-app.get('/cron/send-daily-summaries', async (req, res) => {
+async function handleSendDailySummaries(req, res) {
   const today = new Date().toISOString().split('T')[0];
   const tzFilter = req.query.tz ? String(req.query.tz) : null;
   const force = String(req.query.force || '').toLowerCase() === 'true';
@@ -377,7 +378,7 @@ app.get('/cron/send-daily-summaries', async (req, res) => {
         .filter(Boolean)
         .filter((s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s))
     : null;
-  
+
   console.log('\n' + '='.repeat(70));
   console.log(`📊 FSM DAILY SUMMARY AUTOMATION - ${formatDate(today)}`);
   console.log('='.repeat(70) + '\n');
@@ -387,7 +388,7 @@ app.get('/cron/send-daily-summaries', async (req, res) => {
     let tenantsQuery = supabase
       .from('tenants')
       .select('id, company_name, timezone, weekend_days, notification_time')
-      .eq('is_active', true)
+      .eq('is_active', true);
 
     if (tenantIdFilter && tenantIdFilter.length > 0) {
       tenantsQuery = tenantsQuery.in('id', tenantIdFilter);
@@ -415,7 +416,7 @@ app.get('/cron/send-daily-summaries', async (req, res) => {
       totalSent += result.sent;
       totalSkipped += result.skipped;
       totalFailed += result.failed;
-      
+
       if (result.reason === 'weekend') {
         skipReasons.weekend.push(tenant.company_name);
       } else if (result.reason === 'no_visits') {
@@ -446,7 +447,6 @@ app.get('/cron/send-daily-summaries', async (req, res) => {
         no_visits: skipReasons.no_visits
       }
     });
-
   } catch (error) {
     console.error('❌ Fatal error:', error);
     res.status(500).json({
@@ -454,7 +454,10 @@ app.get('/cron/send-daily-summaries', async (req, res) => {
       error: error.message
     });
   }
-});
+}
+
+// CRON endpoint - triggered by Cloud Scheduler (protected by App Engine handler login)
+app.get('/cron/send-daily-summaries', handleSendDailySummaries);
 
 /**
  * Health check endpoint
@@ -557,9 +560,7 @@ app.post('/test/dry-run', async (req, res) => {
  */
 app.post('/trigger-now', async (req, res) => {
   console.log('🔔 Manual trigger initiated');
-  const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-  req.url = '/cron/send-daily-summaries' + query;
-  return app._router.handle(req, res);
+  return handleSendDailySummaries(req, res);
 });
 
 app.listen(PORT, () => {
