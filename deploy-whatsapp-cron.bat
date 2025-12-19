@@ -18,7 +18,7 @@ if exist .env.deploy (
 
 REM Generate secrets-filled whatsapp-cron yaml (ignored) from template
 if not exist .deploy mkdir .deploy
-powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $tpl=Get-Content -Raw 'app-whatsapp-cron.yaml'; foreach($k in 'SAK_API_KEY','SAK_SESSION_ID'){ if(-not $env:$k){ throw ('Missing required env var: '+$k+' (set it in .env.deploy)') } }; $out=$tpl.Replace('__SAK_API_KEY__',$env:SAK_API_KEY).Replace('__SAK_SESSION_ID__',$env:SAK_SESSION_ID); Set-Content -NoNewline -Path '.deploy\app-whatsapp-cron.generated.yaml' -Value $out"
+powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $tpl=Get-Content -Raw 'app-whatsapp-cron.yaml'; foreach($k in @('SAK_API_KEY','SAK_SESSION_ID')){ if(-not [Environment]::GetEnvironmentVariable($k,'Process')){ throw ('Missing required env var: '+$k+' (set it in .env.deploy)') } }; $api=[Environment]::GetEnvironmentVariable('SAK_API_KEY','Process'); $sid=[Environment]::GetEnvironmentVariable('SAK_SESSION_ID','Process'); $out=$tpl.Replace('__SAK_API_KEY__',$api).Replace('__SAK_SESSION_ID__',$sid); Set-Content -NoNewline -Path '.deploy\app-whatsapp-cron.generated.yaml' -Value $out"
 
 echo Deploying whatsapp-cron service...
 gcloud app deploy .deploy\app-whatsapp-cron.generated.yaml --quiet --project=%FSM_PROJECT%
