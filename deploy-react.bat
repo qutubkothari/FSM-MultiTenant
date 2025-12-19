@@ -6,6 +6,17 @@ echo.
 
 cd /d "%~dp0"
 
+echo Committing changes to GitHub...
+git add .
+git diff-index --quiet HEAD || git commit -m "Auto-commit before deployment - %date% %time%"
+git push origin main 2>nul
+if %ERRORLEVEL% EQU 0 (
+    echo ✓ Changes committed and pushed to GitHub
+) else (
+    echo ⚠ Nothing to commit or push failed - continuing deployment
+)
+echo.
+
 echo Deploying React PWA to Google Cloud...
 echo.
 

@@ -4,10 +4,11 @@ runtime: python312
 # Environment Variables
 env_variables:
   SAK_BASE_URL: "http://wapi.saksolution.com"
-  SAK_SESSION_ID: "5f4ebac4-0527-407b-9ca1-6f7905664f23"
-  SAK_API_KEY: "9b55751c94e728d824d19a60b4082fd9e45591c1141c1a185f3845fbe9f65f9d"
-  INBOUND_SECRET: "DEH5253"
-  WEBHOOK_SECRET: "9f10a8c499423e3e75edc954078068733c44b1857b82841512b102d81d92edc5d"
+  # NOTE: Do not commit secrets here. Deploy scripts generate a secrets-filled YAML at deploy time.
+  SAK_SESSION_ID: "__SAK_SESSION_ID__"
+  SAK_API_KEY: "__SAK_API_KEY__"
+  INBOUND_SECRET: "__INBOUND_SECRET__"
+  WEBHOOK_SECRET: "__WEBHOOK_SECRET__"
   PORT: "3005"
 
 # Handlers for serving static files

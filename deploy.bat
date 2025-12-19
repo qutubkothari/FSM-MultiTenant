@@ -14,6 +14,27 @@ set "RED=[91m"
 set "YELLOW=[93m"
 set "RESET=[0m"
 
+REM Step 0: Commit changes to GitHub
+echo [STEP 0/7] Committing changes to GitHub...
+git add .
+git diff-index --quiet HEAD || git commit -m "Auto-commit before deployment - %date% %time%"
+git push origin main 2>nul
+if %errorlevel% equ 0 (
+    echo %GREEN%✓ Changes committed and pushed to GitHub%RESET%
+) else (
+    echo %YELLOW%⚠ Nothing to commit or push failed - continuing deployment%RESET%
+)
+echo.
+
+REM Load deployment secrets (optional)
+if exist .env.deploy (
+    powershell -NoProfile -Command "$ErrorActionPreference='Stop'; Get-Content .env.deploy | Where-Object { $_ -and $_ -notmatch '^\s*#' -and $_ -match '=' } | ForEach-Object { $k,$v=$_.Split('=',2); [Environment]::SetEnvironmentVariable($k.Trim(),$v.Trim(),'Process') }"
+)
+
+REM Generate secrets-filled app yaml (ignored) from template
+if not exist .deploy mkdir .deploy
+powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $tpl=Get-Content -Raw 'app.yaml'; foreach($k in 'SAK_API_KEY','SAK_SESSION_ID','INBOUND_SECRET','WEBHOOK_SECRET'){ if(-not $env:$k){ throw ('Missing required env var: '+$k+' (set it in .env.deploy)') } }; $out=$tpl.Replace('__SAK_API_KEY__',$env:SAK_API_KEY).Replace('__SAK_SESSION_ID__',$env:SAK_SESSION_ID).Replace('__INBOUND_SECRET__',$env:INBOUND_SECRET).Replace('__WEBHOOK_SECRET__',$env:WEBHOOK_SECRET); Set-Content -NoNewline -Path '.deploy\app.generated.yaml' -Value $out"
+
 REM Step 1: Check if gcloud is installed
 echo [STEP 1/7] Checking Google Cloud SDK...
 where gcloud >nul 2>&1
@@ -122,7 +143,7 @@ REM Step 7: Deploy
 echo [STEP 7/7] Deploying to Google App Engine...
 echo Target Project: %GREEN%!VERIFY_PROJECT!%RESET%
 echo.
-gcloud app deploy --quiet
+gcloud app deploy .deploy\app.generated.yaml --quiet
 if %errorlevel% neq 0 (
     echo.
     echo %RED%========================================%RESET%

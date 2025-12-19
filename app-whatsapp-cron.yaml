@@ -16,8 +16,9 @@ env_variables:
   SUPABASE_URL: "https://ktvrffbccgxtaststlhw.supabase.co"
   SUPABASE_ANON_KEY: "sb_publishable_sNhpQ5W6i_KuIPcT6bjjnw_BcJwPljV"
   SAK_BASE_URL: "http://wapi.saksolution.com"
-  SAK_SESSION_ID: "5f4ebac4-0527-407b-9ca1-6f7905664f23"
-  SAK_API_KEY: "9b55751c94e728d824d19a60b4082fd9e45591c1141c1a185f3845fbe9f65f9d"
+  # NOTE: Do not commit secrets here. Deploy scripts generate a secrets-filled YAML at deploy time.
+  SAK_SESSION_ID: "__SAK_SESSION_ID__"
+  SAK_API_KEY: "__SAK_API_KEY__"
   NODE_ENV: "production"
 
 handlers:
