@@ -545,7 +545,8 @@ app.post('/test/dry-run', async (req, res) => {
  */
 app.post('/trigger-now', async (req, res) => {
   console.log('🔔 Manual trigger initiated');
-  req.url = '/cron/send-daily-summaries';
+  const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+  req.url = '/cron/send-daily-summaries' + query;
   return app._router.handle(req, res);
 });
 
