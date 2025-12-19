@@ -20,6 +20,9 @@ if exist .env.deploy (
 
 REM Generate secrets-filled whatsapp-cron yaml (ignored) from template
 if not exist .deploy mkdir .deploy
+set "DEPLOY_DIR=.deploy\whatsapp-cron-src"
+if exist "%DEPLOY_DIR%" rmdir /s /q "%DEPLOY_DIR%"
+mkdir "%DEPLOY_DIR%"
 if "%SAK_API_KEY%"=="" (
   echo ERROR: Missing SAK_API_KEY ^(set it in .env.deploy^)
   exit /b 1
@@ -29,15 +32,20 @@ if "%SAK_SESSION_ID%"=="" (
   exit /b 1
 )
 
-powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $tpl=Get-Content -Raw 'app-whatsapp-cron.yaml'; $out=$tpl.Replace('__SAK_API_KEY__',$env:SAK_API_KEY).Replace('__SAK_SESSION_ID__',$env:SAK_SESSION_ID); Set-Content -NoNewline -Path '.deploy\app-whatsapp-cron.generated.yaml' -Value $out"
+REM Copy minimal app source into deploy directory so App Engine can start
+copy /y "cron-server.js" "%DEPLOY_DIR%\cron-server.js" >nul
+copy /y "package.json" "%DEPLOY_DIR%\package.json" >nul
+if exist "package-lock.json" copy /y "package-lock.json" "%DEPLOY_DIR%\package-lock.json" >nul
+
+powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $tpl=Get-Content -Raw 'app-whatsapp-cron.yaml'; $out=$tpl.Replace('__SAK_API_KEY__',$env:SAK_API_KEY).Replace('__SAK_SESSION_ID__',$env:SAK_SESSION_ID); Set-Content -NoNewline -Path '%DEPLOY_DIR%\app-whatsapp-cron.generated.yaml' -Value $out"
 if %ERRORLEVEL% NEQ 0 (
   echo.
-  echo ERROR: Failed to generate .deploy\app-whatsapp-cron.generated.yaml
+  echo ERROR: Failed to generate %DEPLOY_DIR%\app-whatsapp-cron.generated.yaml
   exit /b 1
 )
 
 echo Deploying whatsapp-cron service...
-gcloud app deploy .deploy\app-whatsapp-cron.generated.yaml --quiet --project=%FSM_PROJECT%
+gcloud app deploy %DEPLOY_DIR%\app-whatsapp-cron.generated.yaml --quiet --project=%FSM_PROJECT%
 if %ERRORLEVEL% NEQ 0 (
   echo.
   echo ERROR: Deploy failed.
