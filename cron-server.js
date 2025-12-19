@@ -369,6 +369,14 @@ app.get('/cron/send-daily-summaries', async (req, res) => {
   const today = new Date().toISOString().split('T')[0];
   const tzFilter = req.query.tz ? String(req.query.tz) : null;
   const force = String(req.query.force || '').toLowerCase() === 'true';
+  const tenantIdFilterRaw = req.query.tenant_id ? String(req.query.tenant_id) : null;
+  const tenantIdFilter = tenantIdFilterRaw
+    ? tenantIdFilterRaw
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .filter((s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s))
+    : null;
   
   console.log('\n' + '='.repeat(70));
   console.log(`📊 FSM DAILY SUMMARY AUTOMATION - ${formatDate(today)}`);
@@ -380,6 +388,10 @@ app.get('/cron/send-daily-summaries', async (req, res) => {
       .from('tenants')
       .select('id, company_name, timezone, weekend_days, notification_time')
       .eq('is_active', true)
+
+    if (tenantIdFilter && tenantIdFilter.length > 0) {
+      tenantsQuery = tenantsQuery.in('id', tenantIdFilter);
+    }
 
     if (tzFilter) {
       tenantsQuery = tenantsQuery.eq('timezone', tzFilter);
@@ -396,7 +408,7 @@ app.get('/cron/send-daily-summaries', async (req, res) => {
     let totalFailed = 0;
     const skipReasons = { weekend: [], no_visits: [] };
 
-    const requestMeta = { tz: tzFilter, trigger_date_utc: today, forceSend: force };
+    const requestMeta = { tz: tzFilter, tenant_id: tenantIdFilter, trigger_date_utc: today, forceSend: force };
 
     for (const tenant of tenants) {
       const result = await processTenant(tenant, requestMeta);
